@@ -29,9 +29,11 @@ def getAllQustionsAndAnswers():
     fw = open('../../data/auto_QA_data/CSQA_DENOTATIONS_full.json', 'w', encoding="UTF-8")
     qa_set = load_qadata("../../data/official_downloaded_data/10k/train_10k")
     qa_map = getQA_by_state_py3(qa_set)
+    # load_dict: a dict with keys as the ids of wikidata entities and values as their string labels.
     load_dict = getEntitiyID2Label()
     question_dict = {}
     totality = 0
+    # The tokens appear in the training set.
     fwQuestionDic = open('../../data/auto_QA_data/mask/dic_rl_tr.question', 'w', encoding="UTF-8")
     questionSet = set()
     for qafile_key, qafile_value in qa_map.items():
@@ -50,19 +52,19 @@ def getAllQustionsAndAnswers():
             context_ints = qa['context_ints'].replace("\n", "").strip()
             # Get reverse relation: has_child and -has_child.
             # context_relations.extend(['-' + r for r in context_relations])
-            response_entities = []  if (len(qa['response_entities'].replace("\n", "").strip())==0) else qa['response_entities'].replace("\n", "").strip().split("|")
+            response_entities = [] if (len(qa['response_entities'].replace("\n", "").strip())==0) else qa['response_entities'].replace("\n", "").strip().split("|")
             orig_response = qa['orig_response'].replace("\n", "").strip()
             response_bools = [] if (len(qa['response_bools'].replace("\n", "").strip())==0) else qa['response_bools'].replace("\n", "").strip().split("|")
             # response_ints = qa['response_ints'].replace("\n", "").split("|")
             question_info = {}
             question_info.update({'question': context_utterance,
                                   'entity': context_entities, 'relation': context_relations,
-                                  'type': context_types,'context_ints': context_ints,
-                                  'response_entities': response_entities,'orig_response': orig_response,
+                                  'type': context_types, 'context_ints': context_ints,
+                                  'response_entities': response_entities, 'orig_response': orig_response,
                                   'response_bools': response_bools})
             # Get masked entity.
             entity_maskID = {}
-            if len(context_entities)!=0:
+            if len(context_entities) != 0:
                 context_utterance_low = context_utterance.lower()
                 entity_index_dict = {}
                 for entity in context_entities:
@@ -392,18 +394,40 @@ def getAllQustionsAndAnswersForWebqsp():
     fwQuestionDic.close()
     print("Writing WEBQSP_DENOTATIONS_full.JSON is done!")
 
+# Get annotations of logical questions from CSQA_ANNOTATIONS_full.json.
+def getNewAnnotationsForLogical():
+    count = 0
+    lines = list()
+    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_full.json", 'r', encoding="UTF-8") as load_f:
+        load_dict = json.load(load_f)
+        for key, value in load_dict.items():
+            if 'logical_' in key:
+                try:
+                    question = str(value['question'])
+                    lines.append(str(str(key).split('_')[1]) + ' ' + question + '\n')
+                    actions = eval(str(value['action_sequence_list']))
+                    for action in actions:
+                        lines.append(str(action)+'\n')
+                    count += 1
+                except SyntaxError:
+                    pass
+    fw = open('../../data/annotation_logs/logical_auto.log', 'w', encoding="UTF-8")
+    fw.writelines(lines)
+    print("Writing to %s is done!" %('logical_auto.log'))
+    fw.close()
+
 def getAllQuestionsAndActions():
-    fw = open('../../data/auto_QA_data/CSQA_ANNOTATIONS_full.json', 'w', encoding="UTF-8")
+    fw = open('../../data/auto_QA_data/CSQA_ANNOTATIONS_full_new.json', 'w', encoding="UTF-8")
     '''dictMerged2 = dict( dict1, **dict2 ) is :
         dictMerged2 = dict1.copy()
         dictMerged2.update( dict2 )'''
     question_dicts = dict(
         getQuestionsAndActions('../../data/annotation_logs/simple_auto.log', '../../data/annotation_logs/simple_orig.log'),
-    **(getQuestionsAndActions('../../data/annotation_logs/quantative_auto.log','../../data/annotation_logs/quantative_orig.log')))
+    **(getQuestionsAndActions('../../data/annotation_logs/quantitative_combine_auto.log','../../data/annotation_logs/quantative_orig.log')))
     question_dicts = dict(question_dicts,
         **(getQuestionsAndActions('../../data/annotation_logs/logical_auto.log','../../data/annotation_logs/logical_orig.log')))
     question_dicts = dict(question_dicts,
-                          **(getQuestionsAndActions('../../data/annotation_logs/count_auto.log',
+                          **(getQuestionsAndActions('../../data/annotation_logs/count_combine_auto.log',
                                                     '../../data/annotation_logs/count_orig.log')))
     question_dicts = dict(question_dicts,
                           **(getQuestionsAndActions('../../data/annotation_logs/bool_auto.log',
@@ -456,11 +480,12 @@ def getQuestionsAndActions(annotationPath, origPath):
             count += 1
         else:
             string_list = str(line_string).split(' ')
+            ID_string = ''
             if 'simple_' in str(annotationPath):
                 ID_string = 'simple_' + string_list[0]
             elif 'logical_' in str(annotationPath):
                 ID_string = 'logical_' + string_list[0]
-            elif 'quantative_' in str(annotationPath):
+            elif 'quantative_' in str(annotationPath) or 'quantitative_' in str(annotationPath):
                 ID_string = 'quantative_' + string_list[0]
             elif 'count_' in str(annotationPath) and 'compcount_' not in str(annotationPath):
                 ID_string = 'count_' + string_list[0]
@@ -487,6 +512,7 @@ def getQuestionsAndActions(annotationPath, origPath):
             question_info.setdefault('action_sequence_list', actionSequenceList)
             question_dict.setdefault(ID_string, question_info)
 
+    ID_string = ''
     count = 0
     while count < len(orig_list):
         if 'simple_' in str(origPath):
@@ -560,7 +586,9 @@ def getQuestionsAndActions(annotationPath, origPath):
                             MASK_key = temp_key
                             MASK_value = list()
                             for token in temp_value:
-                                if '-' in token and token != '-':
+                                if isinstance(token, int):
+                                    MASK_value.append(str(token))
+                                elif '-' in token and token != '-':
                                     token_new = token.replace('-','')
                                     if token_new in relation_maskID:
                                         MASK_value.append('-' + str(relation_maskID.get(token_new)))
@@ -583,15 +611,15 @@ def getQuestionsAndActions(annotationPath, origPath):
 
 # Get training data for sequence2sequence.
 def getTrainingDatasetForPytorch():
-    fwTrainQ = open('../../data/auto_QA_data/mask/PT_train.question', 'w', encoding="UTF-8")
-    fwTrainA = open('../../data/auto_QA_data/mask/PT_train.action', 'w', encoding="UTF-8")
-    fwTestQ = open('../../data/auto_QA_data/mask/PT_test.question', 'w', encoding="UTF-8")
-    fwTestA = open('../../data/auto_QA_data/mask/PT_test.action', 'w', encoding="UTF-8")
-    fwQuestionDic = open('../../data/auto_QA_data/mask/dic_py.question', 'w', encoding="UTF-8")
-    fwActionDic = open('../../data/auto_QA_data/mask/dic_py.action', 'w', encoding="UTF-8")
+    fwTrainQ = open('../../data/auto_QA_data/mask/PT_train_new.question', 'w', encoding="UTF-8")
+    fwTrainA = open('../../data/auto_QA_data/mask/PT_train_new.action', 'w', encoding="UTF-8")
+    fwTestQ = open('../../data/auto_QA_data/mask/PT_test_new.question', 'w', encoding="UTF-8")
+    fwTestA = open('../../data/auto_QA_data/mask/PT_test_new.action', 'w', encoding="UTF-8")
+    fwQuestionDic = open('../../data/auto_QA_data/mask/dic_py_new.question', 'w', encoding="UTF-8")
+    fwActionDic = open('../../data/auto_QA_data/mask/dic_py_new.action', 'w', encoding="UTF-8")
     questionSet = set()
     actionSet = set()
-    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_full.json", 'r', encoding="UTF-8") as load_f:
+    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_full_new.json", 'r', encoding="UTF-8") as load_f:
         count = 1
         train_action_string_list, test_action_string_list, train_question_string_list, test_question_string_list = list(), list(), list(), list()
         dict_list = list()
@@ -692,17 +720,17 @@ def getTrainingDatasetForPytorch():
 
 # Get training data for REINFORCE (using annotation instead of denotation as reward).
 def getTrainingDatasetForRl():
-    fwTrainQ = open('../../data/auto_QA_data/mask/RL_train.question', 'w', encoding="UTF-8")
-    fwTrainA = open('../../data/auto_QA_data/mask/RL_train.action', 'w', encoding="UTF-8")
-    fwTestQ = open('../../data/auto_QA_data/mask/RL_test.question', 'w', encoding="UTF-8")
-    fwTestA = open('../../data/auto_QA_data/mask/RL_test.action', 'w', encoding="UTF-8")
-    fwQuestionDic = open('../../data/auto_QA_data/mask/dic_rl.question', 'w', encoding="UTF-8")
-    fwActionDic = open('../../data/auto_QA_data/mask/dic_rl.action', 'w', encoding="UTF-8")
-    fwNoaction = open('../../data/auto_QA_data/mask/no_action_question.txt', 'w', encoding="UTF-8")
+    fwTrainQ = open('../../data/auto_QA_data/mask/RL_train_new.question', 'w', encoding="UTF-8")
+    fwTrainA = open('../../data/auto_QA_data/mask/RL_train_new.action', 'w', encoding="UTF-8")
+    fwTestQ = open('../../data/auto_QA_data/mask/RL_test_new.question', 'w', encoding="UTF-8")
+    fwTestA = open('../../data/auto_QA_data/mask/RL_test_new.action', 'w', encoding="UTF-8")
+    fwQuestionDic = open('../../data/auto_QA_data/mask/dic_rl_new.question', 'w', encoding="UTF-8")
+    fwActionDic = open('../../data/auto_QA_data/mask/dic_rl_new.action', 'w', encoding="UTF-8")
+    fwNoaction = open('../../data/auto_QA_data/mask/no_action_question_new.txt', 'w', encoding="UTF-8")
     no_action_question_list = list()
     questionSet = set()
     actionSet = set()
-    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_full.json", 'r', encoding="UTF-8") as load_f:
+    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_full_new.json", 'r', encoding="UTF-8") as load_f:
         count = 1
         train_action_string_list, test_action_string_list, train_question_string_list, test_question_string_list = list(), list(), list(), list()
         dict_list = list()
@@ -818,7 +846,7 @@ def getShareVocabulary():
     questionVocab = set()
     actionVocab = set()
     actionVocab_list = list()
-    with open('../../data/auto_QA_data/mask/dic_py.question', 'r', encoding="UTF-8") as infile1, open('../../data/auto_QA_data/mask/dic_rl.question', 'r', encoding="UTF-8") as infile2, open('../../data/auto_QA_data/mask/dic_rl_tr.question', 'r', encoding="UTF-8") as infile3:
+    with open('../../data/auto_QA_data/mask/dic_py_new.question', 'r', encoding="UTF-8") as infile1, open('../../data/auto_QA_data/mask/dic_rl_new.question', 'r', encoding="UTF-8") as infile2, open('../../data/auto_QA_data/mask/dic_rl_tr.question', 'r', encoding="UTF-8") as infile3:
         count = 0
         while True:
             lines_gen = list(islice(infile1, LINE_SIZE))
@@ -849,7 +877,7 @@ def getShareVocabulary():
                 questionVocab.add(token)
             count = count + 1
             print(count)
-    with open('../../data/auto_QA_data/mask/dic_py.action', 'r', encoding="UTF-8") as infile1, open('../../data/auto_QA_data/mask/dic_rl.action', 'r', encoding="UTF-8") as infile2:
+    with open('../../data/auto_QA_data/mask/dic_py_new.action', 'r', encoding="UTF-8") as infile1, open('../../data/auto_QA_data/mask/dic_rl_new.action', 'r', encoding="UTF-8") as infile2:
         count = 0
         while True:
             lines_gen = list(islice(infile1, LINE_SIZE))
@@ -884,7 +912,7 @@ def getShareVocabulary():
     share_vocab_list = actionVocab_list + questionVocab_list
     for i in range(len(share_vocab_list)):
         share_vocab_list[i] = share_vocab_list[i] + '\n'
-    fw = open('../../data/auto_QA_data/share.question', 'w', encoding="UTF-8")
+    fw = open('../../data/auto_QA_data/share_new.question', 'w', encoding="UTF-8")
     fw.writelines(share_vocab_list)
     fw.close()
     print("Writing SHARE VOCAB is done!")
@@ -970,7 +998,7 @@ def getShareVocabularyFor944K():
     questionVocab = set()
     actionVocab = set()
     actionVocab_list = list()
-    with open('../../data/auto_QA_data/mask/dic_py.question', 'r', encoding="UTF-8") as infile1, open('../../data/auto_QA_data/mask/dic_rl.question', 'r', encoding="UTF-8") as infile2, open('../../data/auto_QA_data/mask/dic_rl_tr_944k.question', 'r', encoding="UTF-8") as infile3:
+    with open('../../data/auto_QA_data/mask/dic_py_new.question', 'r', encoding="UTF-8") as infile1, open('../../data/auto_QA_data/mask/dic_rl_new.question', 'r', encoding="UTF-8") as infile2, open('../../data/auto_QA_data/mask/dic_rl_tr_944k.question', 'r', encoding="UTF-8") as infile3:
         count = 0
         while True:
             lines_gen = list(islice(infile1, LINE_SIZE))
@@ -1001,7 +1029,7 @@ def getShareVocabularyFor944K():
                 questionVocab.add(token)
             count = count + 1
             print(count)
-    with open('../../data/auto_QA_data/mask/dic_py.action', 'r', encoding="UTF-8") as infile1, open('../../data/auto_QA_data/mask/dic_rl.action', 'r', encoding="UTF-8") as infile2:
+    with open('../../data/auto_QA_data/mask/dic_py_new.action', 'r', encoding="UTF-8") as infile1, open('../../data/auto_QA_data/mask/dic_rl_new.action', 'r', encoding="UTF-8") as infile2:
         count = 0
         while True:
             lines_gen = list(islice(infile1, LINE_SIZE))
@@ -1036,7 +1064,7 @@ def getShareVocabularyFor944K():
     share_vocab_list = actionVocab_list + questionVocab_list
     for i in range(len(share_vocab_list)):
         share_vocab_list[i] = share_vocab_list[i] + '\n'
-    fw = open('../../data/auto_QA_data/share_944k.question', 'w', encoding="UTF-8")
+    fw = open('../../data/auto_QA_data/share_944k_new.question', 'w', encoding="UTF-8")
     fw.writelines(share_vocab_list)
     fw.close()
     print("Writing SHARE VOCAB is done!")
@@ -1048,14 +1076,16 @@ def getShareVocabularyFor944K():
 # Run getTrainingDatasetForRl() to get training and test processDataset for REINFORCE-seq2seq model training.
 # Run getShareVocabulary() to get vocabulary in all training processDataset.
 if __name__ == "__main__":
-    # getAllQuestionsAndActions()
-    # getTrainingDatasetForPytorch()
-    # getTrainingDatasetForRl()
+    # The annotations is mangled, so a new file is created from the initial annotation.json file.
+    # getNewAnnotationsForLogical()
+    getAllQuestionsAndActions()
+    getTrainingDatasetForPytorch()
+    getTrainingDatasetForRl()
     # getAllQustionsAndAnswers()
-    # print(getShareVocabulary())
-    getShareVocabularyForWebQSP()
+    print(getShareVocabulary())
+    # getShareVocabularyForWebQSP()
     # getAllQustionsAndAnswersFor944K()
-    # getShareVocabularyFor944K()
+    getShareVocabularyFor944K()
 
 
 
