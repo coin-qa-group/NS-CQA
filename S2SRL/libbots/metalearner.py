@@ -1121,7 +1121,7 @@ class MetaLearner(object):
         retriever_skipped_samples = 0
 
         for task in tasks:
-            log.info("Task %s for retriever is training..." % (str(task[1]['qid'])))
+            # log.info("Task %s for retriever is training..." % (str(task[1]['qid'])))
 
             # Argmax as baseline.
             # For each task, the initial parameters are the same, i.e., the value stored in old_param_dict.
@@ -1222,7 +1222,7 @@ class MetaLearner(object):
                 retriever_true_reward_sample_batch.append(retriever_sample_reward)
                 retriever_net_advantages.extend([retriever_sample_reward - retriever_argmax_reward] * len(support_set))
 
-            # log.info("Epoch %d, Batch %d, task %s is trained!" % (epoch_count, batch_count, str(task[1]['qid'])))
+            log.info("Epoch %d, Batch %d, task %s for retriever is trained!" % (epoch_count, batch_count, str(task[1]['qid'])))
 
         log_prob_v = torch.cat(retriever_net_policies)
         log_prob_v = log_prob_v.cuda()

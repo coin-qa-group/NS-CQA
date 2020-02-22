@@ -5,7 +5,7 @@ import sys
 sys.path.append('..')
 import os
 import time
-from . import symbolics
+from symbolics import Symbolics
 
 def test_folder(fpath):
     # 读取qa文件集
@@ -22,7 +22,7 @@ def test_file(root, f):
     qa_path = root + f
     qa_file = open(qa_path)
     qa_result = open(qa_path[:-4] + "_result.txt", "w")
-    print ("qa_result path is: %s" %(str(qa_result)))
+    print("qa_result path is: %s" %(str(qa_result)))
     qa_result.truncate()
     sym_seq = []
     flag = 0
@@ -45,7 +45,7 @@ def test_file(root, f):
         if (line.startswith("-----------") and flag == 1):
             time_start = time.time()
             # Actions execution.
-            symbolic_exe = symbolics.Symbolics(sym_seq)
+            symbolic_exe = Symbolics(sym_seq)
             answer = symbolic_exe.executor()
 
             # To judge the returned answers are in dict format or boolean format.
@@ -91,18 +91,28 @@ def test_file(root, f):
 if __name__ == "__main__":
     #test_folder("/home/zhangjingyao/demoqa/")
     # fname = "Comparative_else.txt"
-    # test_file("../data/demoqa2/", fname)
+    # test_file("../../data/demoqa2/", fname)
     # fname = "appro_quant_countOver_multi_et.txt"
-    # test_file("../data/demoqa2/", fname)
+    # test_file("../../data/demoqa2/", fname)
     # fname = "appro_quant_atleast_single_et.txt"
-    # test_file("../data/demoqa2/", fname)
+    # test_file("../../data/demoqa2/", fname)
     # fname = "appro_quant_atleast_multi_et.txt"
-    # test_file("../data/demoqa2/", fname)
+    # test_file("../../data/demoqa2/", fname)
     # fname = "appro_quant_countOver_single_et.txt"
-    # test_file("../data/demoqa2/", fname)
+    # test_file("../../data/demoqa2/", fname)
+    # fname = "quant_countOver_single_et.txt"
+    # test_file("../../data/demoqa2/", fname)
+    # fname = "quant_countOver_multi_et.txt"
+    # test_file("../../data/demoqa2/", fname)
     # fname = "Comparative_Count_else.txt"
-    # test_file("../data/demoqa2/", fname)
+    # test_file("../../data/demoqa2/", fname)
     # fname = "train_bool_all.txt"
-    fname = "bool_test.txt"
-    test_file("../data/demoqa2/", fname)
+    # fname = "bool_test.txt"
+    # test_file("../../data/demoqa2/", fname)
+    # fname = "quant_atleast_multi_et.txt"
+    # test_file("../../data/demoqa2/", fname)
+    fname = "quant_atleast_single_et.txt"
+    test_file("../../data/demoqa2/", fname)
+
+
 

@@ -95,8 +95,5 @@ def testGenerate():
         test_json.writelines(json.dumps(question_dict, indent=1, ensure_ascii=False,sort_keys=False))
 
 
-
-
-
 if __name__ == "__main__":
     testGenerate()
