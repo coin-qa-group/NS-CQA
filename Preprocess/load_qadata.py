@@ -126,6 +126,17 @@ for root, dirnames, filenames in os.walk('/home/zhangjingyao/demo/'):
     for f in filenames:
         countDict[f] = 0
 
+def print_context_int_py3(qa,root,fname):
+    fname1 = root + fname + '.txt'
+    with open(fname1, 'a+') as f:
+        f.write('context_utterance ' + str(qa['context_utterance']))
+        f.write('context_ints ' + str(qa['context_ints']))
+    # fname1 = root + fname + '_onlyints.txt'
+    # with open(fname1, 'a+') as f:
+    #     s = str(qa['context_ints']).strip()
+    #     if s != '':
+    #         f.write(s+'\n')
+
 def print_qa_py3(qa,root,fname):
     fname = root+fname+'.txt'
     #if(os.path.exists(fname) and os.path.getsize(fname)>102400): return
@@ -181,7 +192,6 @@ def print_qa(qa,root,fname):
     print (f, "CODE:\n")
     print (f, "----------------------------")
 
-
 def get_quantitative_trainingset():
     root = "../data/demoqa2/"
     qa_set = load_qadata("../data/official_downloaded_data/10k/train_10k")
@@ -191,10 +201,32 @@ def get_quantitative_trainingset():
     for qa in qa_map['Quantitative Reasoning (All)\n']:
         print_qa_py3(qa, root, 'train_quanti_all')
 
+# Get question and context_ints info for training dataset.
+def get_context_ints_trainingset(root, path):
+    qa_set = load_qadata(path)
+    qa_map = getQA_by_state_py3(qa_set)
+    type = 'context_ints_' + path.split('_')[-1]
+    count = 0
+    for k, v in qa_map.items():
+        for qa in v:
+            print_context_int_py3(qa, root, type)
+            count += 1
+            if count % 10000 == 0:
+                print(count)
+
 
 if __name__ == "__main__":
+    # get_quantitative_trainingset()
+    root = "../data/demoqa2/"
+    # path = "../data/official_downloaded_data/10k/train_10k"
+    # get_context_ints_trainingset(root, path)
+    #
+    # path = "../data/official_downloaded_data/944k/train_944k"
+    # get_context_ints_trainingset(root, path)
 
-    get_quantitative_trainingset()
+    path = "../data/official_downloaded_data/156k_testfull"
+    get_context_ints_trainingset(root, path)
+
     '''
     qa_set = load_qadata("/data/zjy/valid_full")
     qa_map = getQA_by_state(qa_set)

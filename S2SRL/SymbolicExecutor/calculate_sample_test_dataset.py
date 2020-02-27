@@ -12,7 +12,7 @@ from symbolics import Symbolics
 from transform_util import transformBooleanToString, list2dict
 import logging
 log1 = logging.basicConfig(level=logging.INFO,#控制台打印的日志级别
-                    filename='../../data/auto_QA_data/test_result/1.0%_sample_test_result_RLTR_batch8.log',
+                    filename='../../data/auto_QA_data/test_result/sample_test_result_maml_1%_batch8_att=0.log',
                     # filename='../../data/auto_QA_data/test_result/1.0%_full_test_result_TR_batch8.log',
                     filemode='w',##模式，有w和a，w就是写模式，每次都会重新写日志，覆盖之前的日志
                     #a是追加模式，默认如果不写的话，就是追加模式
@@ -21,8 +21,12 @@ log1 = logging.basicConfig(level=logging.INFO,#控制台打印的日志级别
                     #日志格式
                     )
 
-def transMask2Action(state):
-    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json", 'r') as load_f, open("../../data/saves/rl_even_true_1%/sample_final_predict.actions", 'r') as predict_actions \
+def transMask2Action(state, withint):
+    if withint:
+        path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test_INT.json'
+    else:
+        path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json'
+    with open(path, 'r') as load_f, open("../../data/saves/rl_even_true_1%/sample_final_predict.actions", 'r') as predict_actions \
             , open("../../data/auto_QA_data/mask_test/SAMPLE_FINAL_test.question", 'r') as RL_test:
         # with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json", 'r') as load_f, open("../../data/saves/rl_even_TR_batch8_1%/final_predict.actions", 'r') as predict_actions \
         #         , open("../../data/auto_QA_data/mask_test/FINAL_test.question", 'r') as RL_test:
@@ -45,13 +49,16 @@ def transMask2Action(state):
                 entity_mask = load_dict[id]["entity_mask"] if load_dict[id]["entity_mask"] != None else {}
                 relation_mask = load_dict[id]["relation_mask"] if load_dict[id]["relation_mask"] != None else {}
                 type_mask = load_dict[id]["type_mask"] if load_dict[id]["type_mask"] != None else {}
-                response_entities = load_dict[id]["response_entities"].strip() if load_dict[id][
-                                                                                      "response_entities"] != None else ""
+                # todo: test
+                int_mask = load_dict[id]["int_mask"] if 'int_mask' in load_dict[id] else {}
+                response_entities = load_dict[id]["response_entities"].strip() if load_dict[id]["response_entities"] != None else ""
                 response_entities = response_entities.strip().split("|")
                 orig_response = load_dict[id]["orig_response"].strip() if load_dict[id]["orig_response"] != None else ""
                 # Update(add) elements in dict.
                 entity_mask.update(relation_mask)
                 entity_mask.update(type_mask)
+                # todo: test
+                entity_mask.update(int_mask)
                 new_action = list()
                 # Default separator of split() method is any whitespace.
                 for act in action.split():
@@ -184,8 +191,12 @@ def transMask2Action(state):
         linelist.append('++++++++++++++\n\n')
         return linelist
 
-def transMask2ActionMAML(state):
-    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json", 'r') as load_f, open("../../data/saves/maml_1%_batch8_att=0/sample_final_maml_predict.actions", 'r') as predict_actions:
+def transMask2ActionMAML(state, withint):
+    if withint:
+        path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test_INT.json'
+    else:
+        path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json'
+    with open(path, 'r') as load_f, open("../../data/saves/maml_1%_batch8_att=0/sample_final_maml_predict.actions", 'r') as predict_actions:
         # with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json", 'r') as load_f, open("../../data/saves/rl_even_TR_batch8_1%/final_predict.actions", 'r') as predict_actions \
         #         , open("../../data/auto_QA_data/mask_test/FINAL_test.question", 'r') as RL_test:
         linelist = list()
@@ -207,6 +218,8 @@ def transMask2ActionMAML(state):
                 entity_mask = load_dict[id]["entity_mask"] if load_dict[id]["entity_mask"] != None else {}
                 relation_mask = load_dict[id]["relation_mask"] if load_dict[id]["relation_mask"] != None else {}
                 type_mask = load_dict[id]["type_mask"] if load_dict[id]["type_mask"] != None else {}
+                # todo: test
+                int_mask = load_dict[id]["int_mask"] if 'int_mask' in load_dict[id] else {}
                 response_entities = load_dict[id]["response_entities"].strip() if load_dict[id][
                                                                                       "response_entities"] != None else ""
                 response_entities = response_entities.strip().split("|")
@@ -214,6 +227,8 @@ def transMask2ActionMAML(state):
                 # Update(add) elements in dict.
                 entity_mask.update(relation_mask)
                 entity_mask.update(type_mask)
+                # todo: test
+                entity_mask.update(int_mask)
                 new_action = list()
                 # Default separator of split() method is any whitespace.
                 for act in action.split():
@@ -347,8 +362,8 @@ def transMask2ActionMAML(state):
         return linelist
 
 
-def calculate_RL_or_DL_result(fila_path):
-    path = '../../data/auto_QA_data/test_result/'+fila_path+'.txt'
+def calculate_RL_or_DL_result(file_path, withint):
+    path = '../../data/auto_QA_data/test_result/'+file_path+'.txt'
     linelist = list()
     fw = open(path, 'w', encoding = "UTF-8")
     # fw = open('../../data/auto_QA_data/test_result/1%_full_test_result_TR_batch8.txt', 'w', encoding="UTF-8")
@@ -357,12 +372,12 @@ def calculate_RL_or_DL_result(fila_path):
                   "LogicalReasoning(All)"]
     # state_list = ["Verification(Boolean)(All)"]
     for state in state_list:
-        linelist += transMask2Action(state)
+        linelist += transMask2Action(state, withint)
     fw.writelines(linelist)
     fw.close()
 
-def calculate_MAML_result(fila_path):
-    path = '../../data/auto_QA_data/test_result/'+fila_path+'.txt'
+def calculate_MAML_result(file_path, withint):
+    path = '../../data/auto_QA_data/test_result/'+file_path+'.txt'
     linelist = list()
     fw = open(path, 'w', encoding = "UTF-8")
     # fw = open('../../data/auto_QA_data/test_result/1%_full_test_result_TR_batch8.txt', 'w', encoding="UTF-8")
@@ -371,10 +386,10 @@ def calculate_MAML_result(fila_path):
                   "LogicalReasoning(All)"]
     # state_list = ["Verification(Boolean)(All)"]
     for state in state_list:
-        linelist += transMask2ActionMAML(state)
+        linelist += transMask2ActionMAML(state, withint)
     fw.writelines(linelist)
     fw.close()
 
 if __name__ == "__main__":
-    calculate_RL_or_DL_result('sample_test_TR_1%_batch8_att=1')
-    # calculate_MAML_result('1%_sample_test_result_MAML')
+    # calculate_RL_or_DL_result('sample_test_TR_1%_batch8_att=1_200', withint=True)
+    calculate_MAML_result('maml_1%_batch8_att=0', withint=True)

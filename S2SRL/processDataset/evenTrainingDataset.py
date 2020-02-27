@@ -20,7 +20,8 @@ LINE_SIZE = 100000
 
 CATEGORY_SIZE = 2800
 COMP_SIZE = 932
-COMP_APPRO_SIZE = 1769
+# COMP_APPRO_SIZE = 1769
+COMP_APPRO_SIZE = 2023
 COMP_COUNT_SIZE = 554
 COMP_COUNT_APPRO_SIZE = 1536
 QUANTATIVE_SIZE = 1880
@@ -32,7 +33,7 @@ special_counting_characters = {'-','|','&'}
 special_characters = {'(',')','-','|','&'}
 
 # Get the training processDataset and test processDataset for seq2seq (one question to one action ).
-def getTrainingDatasetForPytorch(percentage):
+def getTrainingDatasetForPytorch(percentage, withint):
     # Create target directory & all intermediate directories if don't exists
     dirName = '../../data/auto_QA_data/mask_even_' + percentage
     if not os.path.exists(dirName):
@@ -40,15 +41,24 @@ def getTrainingDatasetForPytorch(percentage):
         print("Directory ", dirName, " Created ")
     else:
         print("Directory ", dirName, " already exists")
-    path = dirName + '/PT_train.question'
-    fwTrainQ = open(path, 'w', encoding="UTF-8")
-    path = dirName + '/PT_train.action'
-    fwTrainA = open(path, 'w', encoding="UTF-8")
-    path = dirName + '/PT_test.question'
-    fwTestQ = open(path, 'w', encoding="UTF-8")
-    path = dirName + '/PT_test.action'
-    fwTestA = open(path, 'w', encoding="UTF-8")
-    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_full.json", 'r', encoding="UTF-8") as load_f:
+    if withint:
+        path1 = dirName + '/PT_train_INT.question'
+        path2 = dirName + '/PT_train_INT.action'
+        path3 = dirName + '/PT_test_INT.question'
+        path4 = dirName + '/PT_test_INT.action'
+        path5 = '../../data/auto_QA_data/CSQA_ANNOTATIONS_full_INT.json'
+    else:
+        path1 = dirName + '/PT_train.question'
+        path2 = dirName + '/PT_train.action'
+        path3 = dirName + '/PT_test.question'
+        path4 = dirName + '/PT_test.action'
+        path5 = '../../data/auto_QA_data/CSQA_ANNOTATIONS_full.json'
+
+    fwTrainQ = open(path1, 'w', encoding="UTF-8")
+    fwTrainA = open(path2, 'w', encoding="UTF-8")
+    fwTestQ = open(path3, 'w', encoding="UTF-8")
+    fwTestA = open(path4, 'w', encoding="UTF-8")
+    with open(path5, 'r', encoding="UTF-8") as load_f:
         train_action_string_list, test_action_string_list, train_question_string_list, test_question_string_list = list(), list(), list(), list()
         dict_list = list()
         load_dict = json.load(load_f)
@@ -67,11 +77,11 @@ def getTrainingDatasetForPytorch(percentage):
                     count_dict['simple_'] = count_dict['simple_'] + 1
                 elif 'logical_' in key and count_dict['logical_'] < CATEGORY_SIZE:
                     count_dict['logical_'] = count_dict['logical_'] + 1
-                elif 'quantative_' in key and count_dict['quantative_'] < QUANTATIVE_SIZE:
+                elif 'quantative_' in key and count_dict['quantative_'] < CATEGORY_SIZE:
                     count_dict['quantative_'] = count_dict['quantative_'] + 1
-                elif 'count_' in key and 'compcount_' not in key and count_dict['count_'] < COUNT_SIZE:
+                elif 'count_' in key and 'compcount_' not in key and count_dict['count_'] < CATEGORY_SIZE:
                     count_dict['count_'] = count_dict['count_'] + 1
-                elif 'bool_' in key and count_dict['bool_'] < BOOL_SIZE:
+                elif 'bool_' in key and count_dict['bool_'] < CATEGORY_SIZE:
                     count_dict['bool_'] = count_dict['bool_'] + 1
                 elif 'comp_' in key and count_dict['comp_'] < COMP_SIZE:
                     count_dict['comp_'] = count_dict['comp_'] + 1
@@ -109,9 +119,18 @@ def getTrainingDatasetForPytorch(percentage):
                 types = value['type_mask']
                 if len(types) > 0:
                     for type_key, type_value in types.items():
-                        if str(type_value) !='':
+                        if str(type_value) != '':
                             question_string += str(type_value) + ' '
                 question_string += '</T> '
+                if 'int_mask' in value:
+                    question_string += '<I> '
+                    types = value['int_mask']
+                    if len(types) > 0:
+                        for type_key, type_value in types.items():
+                            if str(type_value) != '':
+                                question_string += str(type_value) + ' '
+                    question_string += '</I> '
+
                 question_token = str(value['question']).lower().replace('?', '')
                 question_token = question_token.replace(',', ' ')
                 question_token = question_token.replace(':', ' ')
@@ -150,7 +169,7 @@ def getTrainingDatasetForPytorch(percentage):
     print ("Getting SEQUENCE2SEQUENCE processDataset is done!")
 
 # Get the training processDataset and test processDataset for REINFORCE (one question to many actions).
-def getTrainingDatasetForRl(percentage):
+def getTrainingDatasetForRl(percentage, withint):
     # Create target directory & all intermediate directories if don't exists
     dirName = '../../data/auto_QA_data/mask_even_' + percentage
     if not os.path.exists(dirName):
@@ -158,19 +177,29 @@ def getTrainingDatasetForRl(percentage):
         print("Directory ", dirName, " Created ")
     else:
         print("Directory ", dirName, " already exists")
-    path = dirName + '/RL_train.question'
-    fwTrainQ = open(path, 'w', encoding="UTF-8")
-    path = dirName + '/RL_train.action'
-    fwTrainA = open(path, 'w', encoding="UTF-8")
-    path = dirName + '/RL_test.question'
-    fwTestQ = open(path, 'w', encoding="UTF-8")
-    path = dirName + '/RL_test.action'
-    fwTestA = open(path, 'w', encoding="UTF-8")
+
+    if withint:
+        path1 = dirName + '/RL_train_INT.question'
+        path2 = dirName + '/RL_train_INT.action'
+        path3 = dirName + '/RL_test_INT.question'
+        path4 = dirName + '/RL_test_INT.action'
+        path5 = '../../data/auto_QA_data/CSQA_ANNOTATIONS_full_INT.json'
+    else:
+        path1 = dirName + '/RL_train.question'
+        path2 = dirName + '/RL_train.action'
+        path3 = dirName + '/RL_test.question'
+        path4 = dirName + '/RL_test.action'
+        path5 = '../../data/auto_QA_data/CSQA_ANNOTATIONS_full.json'
+
+    fwTrainQ = open(path1, 'w', encoding="UTF-8")
+    fwTrainA = open(path2, 'w', encoding="UTF-8")
+    fwTestQ = open(path3, 'w', encoding="UTF-8")
+    fwTestA = open(path4, 'w', encoding="UTF-8")
     # fwNoaction = open('../../data/auto_QA_data/mask_even/no_action_question.txt', 'w', encoding="UTF-8")
     no_action_question_list = list()
     questionSet = set()
     actionSet = set()
-    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_full.json", 'r', encoding="UTF-8") as load_f:
+    with open(path5, 'r', encoding="UTF-8") as load_f:
         train_action_string_list, test_action_string_list, train_question_string_list, test_question_string_list = list(), list(), list(), list()
         dict_list = list()
         load_dict = json.load(load_f)
@@ -189,11 +218,11 @@ def getTrainingDatasetForRl(percentage):
                     count_dict['simple_'] = count_dict['simple_'] + 1
                 elif 'logical_' in key and count_dict['logical_'] < CATEGORY_SIZE:
                     count_dict['logical_'] = count_dict['logical_'] + 1
-                elif 'quantative_' in key and count_dict['quantative_'] < QUANTATIVE_SIZE:
+                elif 'quantative_' in key and count_dict['quantative_'] < CATEGORY_SIZE:
                     count_dict['quantative_'] = count_dict['quantative_'] + 1
-                elif 'count_' in key and 'compcount_' not in key and count_dict['count_'] < COUNT_SIZE:
+                elif 'count_' in key and 'compcount_' not in key and count_dict['count_'] < CATEGORY_SIZE:
                     count_dict['count_'] = count_dict['count_'] + 1
-                elif 'bool_' in key and count_dict['bool_'] < BOOL_SIZE:
+                elif 'bool_' in key and count_dict['bool_'] < CATEGORY_SIZE:
                     count_dict['bool_'] = count_dict['bool_'] + 1
                 elif 'comp_' in key and count_dict['comp_'] < COMP_SIZE:
                     count_dict['comp_'] = count_dict['comp_'] + 1
@@ -237,6 +266,14 @@ def getTrainingDatasetForRl(percentage):
                         if str(type_value) !='':
                             question_string += str(type_value) + ' '
                 question_string += '</T> '
+                if 'int_mask' in value:
+                    question_string += '<I> '
+                    types = value['int_mask']
+                    if len(types) > 0:
+                        for type_key, type_value in types.items():
+                            if str(type_value) != '':
+                                question_string += str(type_value) + ' '
+                    question_string += '</I> '
                 question_token = str(value['question']).lower().replace('?', '')
                 question_token = question_token.replace(',', ' ')
                 question_token = question_token.replace(':', ' ')
@@ -299,10 +336,10 @@ def getTrainingDatasetForRl(percentage):
     fwTestQ.close()
     fwTestA.close()
     # fwNoaction.close()
-    print ("Getting RL processDataset is done!")
+    print("Getting RL processDataset is done!")
 
 # Get the training processDataset and test processDataset for REINFORCE with True Reward (one question with one answer).
-def getTrainingDatasetForRlWithTrueReward(percentage, SIZE):
+def getTrainingDatasetForRlWithTrueReward(percentage, SIZE, withint):
     # Create target directory & all intermediate directories if don't exists
     dirName = '../../data/auto_QA_data/mask_even_' + percentage
     if not os.path.exists(dirName):
@@ -310,11 +347,18 @@ def getTrainingDatasetForRlWithTrueReward(percentage, SIZE):
         print("Directory ", dirName, " Created ")
     else:
         print("Directory ", dirName, " already exists")
-    path = dirName + '/RL_train_TR_new_500.question'
-    fwTrainQ = open(path, 'w', encoding="UTF-8")
-    path = dirName + '/RL_test_TR_new_500.question'
-    fwTestQ = open(path, 'w', encoding="UTF-8")
-    with open("../../data/auto_QA_data/CSQA_DENOTATIONS_full_944K.json", 'r', encoding="UTF-8") as load_f:
+    if withint:
+        path1 = dirName + '/RL_train_TR_new_2k_INT.question'
+        path2 = dirName + '/RL_test_TR_new_2k_INT.question'
+        path3 = '../../data/auto_QA_data/CSQA_DENOTATIONS_full_944K_INT.json'
+    else:
+        path1 = dirName + '/RL_train_TR_new_2k.question'
+        path2 = dirName + '/RL_test_TR_new_2k.question'
+        path3 = '../../data/auto_QA_data/CSQA_DENOTATIONS_full_944K.json'
+
+    fwTrainQ = open(path1, 'w', encoding="UTF-8")
+    fwTestQ = open(path2, 'w', encoding="UTF-8")
+    with open(path3, 'r', encoding="UTF-8") as load_f:
         dict_list = {}
         load_dict = json.load(load_f)
         list_of_load_dict = list(load_dict.items())
@@ -362,7 +406,8 @@ def getTrainingDatasetForRlWithTrueReward(percentage, SIZE):
     fwTrainQ.close()
     fwTestQ.writelines(json.dumps(dict_test_list, indent=1, ensure_ascii=False))
     fwTestQ.close()
-    print ("Getting RL_TR processDataset is done!")
+    print("Getting RL_TR processDataset is done!")
+
 
 # Run getTrainingDatasetForPytorch() to get evenly-distributed training and test processDataset for seq2seq model training.
 # Run getTrainingDatasetForRl() to get evenly-distributed training and test processDataset for REINFORCE-seq2seq model training.
@@ -370,7 +415,7 @@ def getTrainingDatasetForRlWithTrueReward(percentage, SIZE):
 if __name__ == "__main__":
     # percentage represents how much samples (0.2% ~ 1.2%) are drawn from the whole training dataset.
     percentage = '1.0%'
-    size = 74
-    # getTrainingDatasetForPytorch(percentage)
-    # getTrainingDatasetForRl(percentage)
-    getTrainingDatasetForRlWithTrueReward(percentage, size)
+    size = 296
+    # getTrainingDatasetForPytorch(percentage, withint=True)
+    # getTrainingDatasetForRl(percentage, withint=True)
+    getTrainingDatasetForRlWithTrueReward(percentage, size, withint=True)
