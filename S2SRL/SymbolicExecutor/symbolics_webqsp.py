@@ -14,6 +14,7 @@ app = Flask(__name__)
 # post_url = "http://10.201.34.3:5002/post"
 # # local server
 post_url = "http://127.0.0.1:5001/post"
+b_print = False
 
 class WebQSP(object):
     def __init__(self, id, question, action_sequence_list, entity, relation, type, entity_mask, relation_mask, type_mask, mask_action_sequence_list, answerlist):
@@ -581,7 +582,7 @@ class Symbolics_WebQSP():
                 if 'content' in content_json:
                     content = content_json['content']
             except:
-                print("ERROR for command: select_all(%s,%s,%s)" %(et,r,t))
+                print("ERROR for command: select_all(%s,%s,%s)" % (et, r, t))
             # content = requests.post("http://127.0.0.1:5000/post", json=json_pack).json()['content']
             # for k, v in content.items():
             #   if len(v) == 0: content.pop(k)
@@ -937,7 +938,8 @@ def processSparql(sparql_str, id="empty"):
                 continue
 
             if "UNION" == untreated_str:
-                print ("has union", id)
+                if b_print:
+                    print("has union", id)
 
             if untreated_str.startswith("SELECT"):  # find answer key
                 for item in untreated_str.split(" "):
@@ -946,6 +948,26 @@ def processSparql(sparql_str, id="empty"):
             elif untreated_str.startswith("PREFIX") or "langMatches" in untreated_str:
                 # ignore
                 pass
+            elif untreated_str.startswith("FILTER (?x != ns:"):
+                # filter not equal
+                action_type = "A5"
+                s = "?x"
+                # s = "ANSWER"
+                t = untreated_str.replace("FILTER (?x != ns:", "").replace(")", "").replace(" ", "")
+                action_item = Action(action_type, s, r, t)
+                if isValidAction(action_item):
+                    sparql_list.append(action_item)
+            elif untreated_str.count("?") == 2 and ("FILTER" not in untreated_str or "EXISTS" not in untreated_str):
+                action_type = "A4"  # joint
+                triple_list = untreated_str.split(" ")
+                if len(triple_list) == 4:
+                    s = triple_list[0].replace("ns:", "")
+                    r = triple_list[1].replace("ns:", "")
+                    t = triple_list[2].replace("ns:", "")
+                    if s != "" and r != "" and t != "":
+                        action_item = Action(action_type, s, r, t)
+                        if isValidAction(action_item):
+                            sparql_list.append(action_item)
             elif untreated_str.count("?") == 1 and untreated_str.startswith("ns:"):
                 # base action: select
                 action_type = "A1"
@@ -958,15 +980,6 @@ def processSparql(sparql_str, id="empty"):
                         action_item = Action(action_type, s, r, t)
                         if isValidAction(action_item):
                             sparql_list.append(action_item)
-            elif untreated_str.startswith("FILTER (?x != ns:"):
-                # filter not equal
-                action_type = "A5"
-                s = "?x"
-                # s = "ANSWER"
-                t = untreated_str.replace("FILTER (?x != ns:", "").replace(")", "").replace(" ", "")
-                action_item = Action(action_type, s, r, t)
-                if isValidAction(action_item):
-                    sparql_list.append(action_item)
             elif untreated_str.count("?") == 1 and untreated_str.startswith("?"):
                 # ?x ns:a ns:b
                 # if have e,  A3 : filter variable: find sub set fits the bill
@@ -978,49 +991,21 @@ def processSparql(sparql_str, id="empty"):
                     r = triple_list[1].replace("ns:", "")
                     t = triple_list[2].replace("ns:", "")
                     if s != "" and r != "" and t != "":
-                        for action in sparql_list:
-                            if action.e == s or action.t == s:  # already has variable
-                                action_type = "A4"
+                        # for action in sparql_list:
+                        #     if action.e == s or action.t == s:  # already has variable
+                        #         action_type = "A4"
                         # special for webqsp: swap s and t ,A3->A1 "6" means single action_seq
                         # print(len(untreated_list), "length of untreated_list")
-                        if len(untreated_list) == 6:
-                            action_type = "A1"
-                            temp = s
-                            s = t
-                            t = temp
+                        # if len(untreated_list) == 6:
+                        #     action_type = "A1"
+                        #     temp = s
+                        #     s = t
+                        #     t = temp
                         action_item = Action(action_type, s, r, t)
                         if isValidAction(action_item):
                             sparql_list.append(action_item)
                 # print(action_item)
-            elif untreated_str.count("?") == 2 and ("FILTER" not in untreated_str or "EXISTS" not in untreated_str):
-                action_type = "A4"  # joint
-                triple_list = untreated_str.split(" ")
-                if len(triple_list) == 4:
-                    s = triple_list[0].replace("ns:", "")
-                    r = triple_list[1].replace("ns:", "")
-                    t = triple_list[2].replace("ns:", "")
-                    if s != "" and r != "" and t != "":
-                        action_item = Action(action_type, s, r, t)
-                        if isValidAction(action_item):
-                            sparql_list.append(action_item)
-                    # print(untreated_str, action_item.to_str())
-            # elif untreated_str.startswith("FILTER(xsd:datetime") and "<=" in untreated_str: # filter datetime less or equal
-            #     date_re = re.search(r"(\d{4}-\d{1,2}-\d{1,2})", untreated_str)
-            #     date_str = date_re.group(0)
-            #
-            #     date_variable_re = re.search(r"(xsd:datetime\((.*?)\))", untreated_str)
-            #     # date_variable_str = date_variable_re.group(1)
-            #     action_type = "A22"
-            #     t = date_variable_re.group(0)
-            #     action_item = Action(action_type, s, r, t)
-            #     sparql_list.append(action_item)
-            #     print(date_variable_re)
-            # elif untreated_str.startswith("FILTER(xsd:datetime") and ">=" in untreated_str: # filter datetime greater or equal
-            #     date_str = re.search(r"(\d{4}-\d{1,2}-\d{1,2})", untreated_str)
-            #     action_type = "A23"
-            #     t = date_variable_re.group(0)
-            #     action_item = Action(action_type, s, r, t)
-            #     sparql_list.append(action_item)
+
 
         # reorder list
         reorder_sparql_list = reorder(sparql_list, answer_keys)
@@ -1176,6 +1161,11 @@ def calc_01_reward(answer, true_answer):
 w_1 = 0.2
 def calc_01_reward_type(target_value, gold_entities_set, type = "f1"):
     true_reward = 0.0
+    target_value = set(target_value)
+    gold_entities_set = set(gold_entities_set)
+    if len(gold_entities_set) == 0:
+        print("========================")
+        return 0
     intersec = set(target_value).intersection(set(gold_entities_set))
     if type == "jaccard":
         union = set([])
@@ -1197,35 +1187,38 @@ def calc_01_reward_type(target_value, gold_entities_set, type = "f1"):
     return true_reward
 
 if __name__ == "__main__":
-    print("start symbolics_webqsp")
-    local_sparql = "PREFIX ns: <http://rdf.freebase.com/ns/>\nSELECT DISTINCT ?x\nWHERE {\nFILTER (?x != ns:m.01_2n)\nFILTER (!isLiteral(?x) OR lang(?x) = '' OR langMatches(lang(?x), 'en'))\nns:m.01_2n ns:tv.tv_program.regular_cast ?y .\n?y ns:tv.regular_tv_appearance.actor ?x .\n?y ns:tv.regular_tv_appearance.character ns:m.015lwh .\n}\n"
-    seq = processSparql(local_sparql)
-    print(seq)
-    symbolic_exe = Symbolics_WebQSP(seq)
-    answer = symbolic_exe.executor()
-    print("answer test1: ", answer)
-
+    # print("start symbolics_webqsp")
+    # local_sparql = "PREFIX ns: <http://rdf.freebase.com/ns/>\nSELECT DISTINCT ?x\nWHERE {\nFILTER (?x != ns:m.01_2n)\nFILTER (!isLiteral(?x) OR lang(?x) = '' OR langMatches(lang(?x), 'en'))\nns:m.01_2n ns:tv.tv_program.regular_cast ?y .\n?y ns:tv.regular_tv_appearance.actor ?x .\n?y ns:tv.regular_tv_appearance.character ns:m.015lwh .\n}\n"
+    # seq = processSparql(local_sparql)
+    # print(seq)
+    # symbolic_exe = Symbolics_WebQSP(seq)
+    # answer = symbolic_exe.executor()
+    # print("answer test1: ", answer)
+    #
     seq74 =[
-            {'A1': ['m.0fq2vj2', 'type.object.name', '?y']},
+            {'A1': ['m.01cg88', 'type.object.name', '?x']},
         ]
     symbolic_exe = Symbolics_WebQSP(seq74)
     answer = symbolic_exe.executor()
     print("answer 74: ", answer)
-
-    seq_3496 =[
-            # {'A1': ['m.0b90_r', 'location.statistical_region.places_exported_to', '?y']},
-            # {'A4': ['?y', 'location.imports_and_exports.exported_to', '?x']},
-            {'A1': ['m.0b90_r', 'location.statistical_region.places_imported_from', '?y']},
-            {'A4': ['?y', 'location.imports_and_exports.imported_from', '?x']},
-        ]
-    symbolic_exe = Symbolics_WebQSP(seq_3496)
-    answer = symbolic_exe.executor()
-    print("answer WebQTrn_3496: ", answer)
+    #
+    # seq_3496 =[
+    #         # {'A1': ['m.0b90_r', 'location.statistical_region.places_exported_to', '?y']},
+    #         # {'A4': ['?y', 'location.imports_and_exports.exported_to', '?x']},
+    #         {'A1': ['m.0b90_r', 'location.statistical_region.places_imported_from', '?y']},
+    #         {'A4': ['?y', 'location.imports_and_exports.imported_from', '?x']},
+    #     ]
+    # symbolic_exe = Symbolics_WebQSP(seq_3496)
+    # answer = symbolic_exe.executor()
+    # print("answer WebQTrn_3496: ", answer)
 
     # Load WebQuestions Semantic Parses
     WebQSPList = []
     WebQSPList_Correct = []
     WebQSPList_Incorrect = []
+    no_gold_answer = []
+    result_list = []
+    no_x_list = []
     json_errorlist = []
     true_count = 0
 
@@ -1242,7 +1235,7 @@ if __name__ == "__main__":
             # myquestions = mytrainquestions[0:9] + mytestquestions[0:9]
             print(len(myquestions))
 
-            process_questions = mytrainquestions
+            process_questions = myquestions
             # total rewards
             total_reward = 0
             test_count = 0
@@ -1254,14 +1247,19 @@ if __name__ == "__main__":
                 question = q["ProcessedQuestion"]
                 Answers = []
                 id = q["QuestionId"]
+                reward = 0.0
                 answerList = q["Parses"][0]["Answers"]
                 for an in answerList:
                     Answers.append(an['AnswerArgument'])
+                if len(Answers) == 0:
+                    print(id, "no gold answer")
+                    no_gold_answer.append(id)
+
                 sparql = q["Parses"][0]["Sparql"]
                 mypair = Qapair(question, Answers, sparql)
 
-                # if id == "WebQTrn-194":  # test one
-                if True: # test all
+                if id == "WebQTrn-0":  # test one
+                # if True: # test all
                     # test seq
                     true_answer = mypair.answer
                     test_sparql = mypair.sparql
@@ -1275,6 +1273,12 @@ if __name__ == "__main__":
                         if key in answer:
                             res_answer = answer[key]
                             reward = calc_01_reward_type(res_answer, true_answer, "f1")
+
+                            result_list.append({id: [seq, reward]})
+                            if reward != 1.0:
+                                result_list.append({id: list(res_answer)})
+                                result_list.append({id: list(true_answer)})
+
                             reward_jaccard = calc_01_reward_type(res_answer, true_answer, "jaccard")
                             reward_recall = calc_01_reward_type(res_answer, true_answer, "recall")
                             reward_precision = calc_01_reward_type(res_answer, true_answer, "precision")
@@ -1292,7 +1296,7 @@ if __name__ == "__main__":
                                 r_index = 1
                                 t_index = 1
                                 for srt in seq:
-                                    for k,v in srt.items():
+                                    for k, v in srt.items():
                                         if v[0] != "":
                                             entity.add(v[0])
                                         if v[1] != "":
@@ -1346,28 +1350,30 @@ if __name__ == "__main__":
                                 # print(question)
                                 # print(answer)
                                 WebQSPList_Correct.append(correct_item)
-                            elif reward == 0.0:
-                                print('incorrect!', reward)
-                                WebQSPList_Incorrect.append(mypair)
-                                print("answer", answer)
-                                print("seq", seq)
-                                print("true_answer", true_answer)
-                                print("id", id)
+                            else:
+                                if b_print:
+                                    print('incorrect!', reward)
+                                    print("answer", answer)
+                                    print("seq", seq)
+                                    print("true_answer", true_answer)
+                                    print("id", id)
+                                    print(" ")
+                                WebQSPList_Incorrect.append(id)
                                 errorlist.append(id)
                                 json_errorlist.append(q)
-                                print(" ")
 
                             total_reward += reward
                             total_reward_jaccard += reward_jaccard
                             total_reward_recall += reward_recall
                             total_reward_precision += reward_precision
-
-
+                        else:
+                            no_x_list.append(id)
                     except Exception as exception:
                         print(exception)
                         pass
 
                 WebQSPList.append(mypair)
+                # result_list.append({id: [seq, res_answer, true_answer, reward]})
 
             questions_count = len(process_questions)
             mean_reward_jaccard = total_reward_jaccard / questions_count
@@ -1381,11 +1387,30 @@ if __name__ == "__main__":
             print("{0} pairs correct".format(true_count))
             print(errorlist)
 
-            # # 写入转换后的json
-            # jsondata = json.dumps(json_errorlist, indent=1)
-            # fileObject = open('errorlist_zero_full.json', 'w')
-            # fileObject.write(jsondata)
-            # fileObject.close()
+            # score 0
+            jsondata = json.dumps(WebQSPList_Incorrect, indent=1)
+            fileObject = open('errorlist_full.json', 'w')
+            fileObject.write(jsondata)
+            fileObject.close()
+
+            # not x
+            jsondata = json.dumps(no_x_list, indent=1)
+            fileObject = open('no_x_list.json', 'w')
+            fileObject.write(jsondata)
+            fileObject.close()
+
+            # result_list
+            jsondata = json.dumps(result_list, indent=1)
+            fileObject = open('result_list.json', 'w')
+            fileObject.write(jsondata)
+            fileObject.close()
+
+            # no_gold_answer
+            jsondata = json.dumps(no_gold_answer, indent=1)
+            fileObject = open('no_gold_answer.json', 'w')
+            fileObject.write(jsondata)
+            fileObject.close()
+
 
             # jsondata = json.dumps(WebQSPList_Correct, indent=1, default=WebQSP.obj_2_json)
             # fileObject = open('right_answer_reorder_mask.json', 'w')

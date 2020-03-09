@@ -43,11 +43,11 @@ class Interpreter():
     # e,r,t 或者 t,r,e包含在图谱中
     def gen_exist(self, e, r, t):
         if t in self.freebase_kb and r in self.freebase_kb[t] and e in self.freebase_kb[t][r]:
-            return True
+            return 2
         elif self.exist(e, r, t):
-            return True
+            return 1
         else:
-            return False
+            return -1
 
     # 通过实体-关系 查找 三元组 类似select
     def execute_gen_set1(self, argument_value, argument_location):
@@ -193,14 +193,15 @@ class Interpreter():
     def execute_terminate(self, argument_value, argument_location):
         return None, 0
 
+    # e, r
     def execute_joint(self, e, r, t):
         temp_set = set([])
         try:
-            if isinstance(e,list):
+            if isinstance(e, list):
                 for entity in e:
-                    if self.exist(entity,r,t):
-                        print("execute_joint", entity, r, t)
-                        temp_set.add(entity)
+                    if entity in self.freebase_kb and r in self.freebase_kb[entity]:
+                        # print("execute_joint", entity, r, self.freebase_kb[entity][r])
+                        temp_set.update(set(self.freebase_kb[entity][r]))
                 return list(temp_set), 0
             else:
                 return list(temp_set), 1
@@ -209,17 +210,18 @@ class Interpreter():
             return list(temp_set), 1
 
     # TODO: NOT THROUGHLY TESTED!
+    # A4
     def get_joint_answer(self, e, r):
         temp_set = set([])
         try:
-            if isinstance(e, list) and len(e)>0 and r is not None:
+            if isinstance(e, list) and len(e) > 0 and r is not None:
                 for entity in e:
                     if entity in self.freebase_kb and r in self.freebase_kb[entity]:
-                        print("execute_joint", entity, r, self.freebase_kb[entity][r])
+                        # print("execute_joint", entity, r, self.freebase_kb[entity][r])
                         temp_set.update(set(self.freebase_kb[entity][r]))
                 return list(temp_set), 0
             else:
-                return list(temp_set), 1
+                return list(temp_set), 0
         except:
             print("Some error occurs in get_joint_answer action!")
             return list(temp_set), 1
@@ -227,14 +229,20 @@ class Interpreter():
     # TODO: NOT THROUGHLY TESTED!
     def get_filter_answer(self, e, r, t):
         temp_set = set([])
+        e_list = []
         try:
-            if isinstance(e, list) and len(e)>0 and r is not None:
+            if isinstance(e, list) and len(e) > 0 and r is not None:
                 for entity in e:
-                    if self.gen_exist(entity, t, t):
-                        temp_set.update(set(self.freebase_kb[entity][r]))
-                return list(temp_set), 0
+                    if self.gen_exist(entity, r, t) == 2:
+                        # temp_set.update((self.freebase_kb[entity][r]))
+                        # new_e = self.freebase_kb[t][r]
+                        e_list.append(entity)
+                    elif self.gen_exist(entity, r, t) == 1:
+                        # new_e = self.freebase_kb[entity][r]
+                        e_list.append(entity)
+                return e_list, 0
             else:
-                return list(temp_set), 1
+                return e_list, 1
         except:
             print("Some error occurs in get_joint_answer action!")
             return list(temp_set), 1
