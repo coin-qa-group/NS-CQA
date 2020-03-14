@@ -164,28 +164,32 @@ class Interpreter():
             return None
 
     # 小于等于date时间的集合
-    def execute_select_oper_date_lt(self, set_date, date):
-        if set_date is None or date is None:
+    def execute_select_oper_date_lt(self, e, r, date):
+        if e is None or r is None or date is None:
             return set([]), 1
-        set_date = set([self.convert_to_date(d) for d in set_date])
-        date = self.convert_to_date(date)
-        subset_date = set([])
-        for d, e in set_date.items():
-            if d <= date:
-                subset_date.add(e)
-        return subset_date, 0
+        e_list = list(e)
+        right_date_e_list = []
+        for e_item in e_list:
+            if self.is_kb_consistent(e, r):
+                e_item_date_list = self.freebase_kb[e][r]
+                if len(e_item_date_list) == 1:
+                    if self.convert_to_date(e_item_date_list[0]) <= self.convert_to_date(date):
+                        right_date_e_list.append(e_item)
+        return right_date_e_list, 0
 
     # 大于等于date时间的集合
-    def execute_select_oper_date_gt(self, set_date, date):
-        if set_date is None or date is None:
+    def execute_select_oper_date_gt(self, e, r, date):
+        if e is None or r is None or date is None:
             return set([]), 1
-        set_date = set([self.convert_to_date(d) for d in set_date])
-        date = self.convert_to_date(date)
-        subset_date = set([])
-        for d, e in set_date.items():
-            if d >= date:
-                subset_date.add(e)
-        return subset_date, 0
+        e_list = list(e)
+        right_date_e_list = []
+        for e_item in e_list:
+            if self.is_kb_consistent(e, r):
+                e_item_date_list = self.freebase_kb[e][r]
+                if len(e_item_date_list) == 1:
+                    if self.convert_to_date(e_item_date_list[0]) >= self.convert_to_date(date):
+                        right_date_e_list.append(e_item)
+        return right_date_e_list, 0
 
     def execute_none(self, argument_value, argument_location):
         return None, 0
@@ -275,9 +279,9 @@ def post_res():
     elif jsonpack['op'] == "get_filter_answer":
         response['content'] = interpreter.get_filter_answer(jsonpack['e'], jsonpack['r'], jsonpack['t'])
     elif jsonpack['op'] == "execute_select_oper_date_lt":
-        response['content'] = interpreter.execute_select_oper_date_lt(jsonpack['set_date'], jsonpack['date'])
+        response['content'] = interpreter.execute_select_oper_date_lt(jsonpack['e'], jsonpack['r'], jsonpack['date'])
     elif jsonpack['op'] == "execute_select_oper_date_gt":
-        response['content'] = interpreter.execute_select_oper_date_gt(jsonpack['set_date'], jsonpack['date'])
+        response['content'] = interpreter.execute_select_oper_date_gt(jsonpack['e'], jsonpack['r'], jsonpack['date'])
     elif jsonpack['op'] == "map_value":
         response['content'] = interpreter.map_value(jsonpack['e'], jsonpack['r'])
 
