@@ -247,6 +247,13 @@ class Interpreter():
             print("Some error occurs in get_joint_answer action!")
             return list(temp_set), 1
 
+    def map_value(self, e, r):
+        temp_set = set([])
+        for e_item in e:
+            if self.is_kb_consistent(e_item, r):
+                temp_set.update({e_item: self.freebase_kb[e_item][r]})
+        return temp_set
+
 @app.route('/post', methods=['POST'])
 def post_res():
     response = {}
@@ -271,6 +278,8 @@ def post_res():
         response['content'] = interpreter.execute_select_oper_date_lt(jsonpack['set_date'], jsonpack['date'])
     elif jsonpack['op'] == "execute_select_oper_date_gt":
         response['content'] = interpreter.execute_select_oper_date_gt(jsonpack['set_date'], jsonpack['date'])
+    elif jsonpack['op'] == "map_value":
+        response['content'] = interpreter.map_value(jsonpack['e'], jsonpack['r'])
 
     # str2entity
 

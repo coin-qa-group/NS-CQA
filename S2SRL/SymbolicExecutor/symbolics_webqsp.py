@@ -395,7 +395,6 @@ class Symbolics_WebQSP():
                 # A dict is returned whose key is the subject and whose value is set of entities.
                 return {e: content}
 
-
     def select_max_as(self, e, r, t):
         if e == "" or t == "" or r != "" or e not in self.answer:
             return {}
@@ -905,6 +904,25 @@ class Symbolics_WebQSP():
             finally:
                 return intermediate_result
 
+
+    #
+    def order_value_limit(self, e, n):
+        e_list =list(e)
+        e_list = e_list[0:n]
+        return e_list
+
+    def order_value_desc_limit(self, e, n):
+        e_list = list(e)
+        e_list = e_list[0:n]
+
+        return e_list
+
+    def compare_value(self, a, b):
+        if a in self.answer and b in self.answer:
+            return self.answer[a] > self.answer[b]
+        return -1
+
+
 # action sequence
 class Action():
     def __init__(self, action_type, e, r, t):
@@ -1023,6 +1041,21 @@ def processSparql(sparql_str, id="empty"):
             seqset[item.action_type] = seqlist
             old_sqarql_list.append(seqset)
         return old_sqarql_list
+
+# parse sparql for value type answer
+def processSparql_value(sparql_str, id="empty"):
+        sparql_list = []
+        untreated_list = sparql_str.split("\n")
+        answer_keys = []
+        value_len = len(untreated_list)
+        if value_len == 8:
+            value_str = untreated_list[5]
+            value_str_list = value_str.split(" ")
+            if len(value_str_list) == 4 and value_str_list[2] == '?x' and value_str_list[3] == '.':
+                s = value_str_list[0]
+                r = value_str_list[1]
+                return [s, r]
+        return []
 
 def isValidAction(action_item):
     return (action_item.e.startswith("m.") or action_item.e.startswith("?"))\
@@ -1159,29 +1192,28 @@ def calc_01_reward(answer, true_answer):
         return true_reward
 
 w_1 = 0.2
-def calc_01_reward_type(target_value, gold_entities_set, type = "f1"):
+def calc_01_reward_type(res_answer, true_answer, type = "f1"):
     true_reward = 0.0
-    target_value = set(target_value)
-    gold_entities_set = set(gold_entities_set)
-    if len(gold_entities_set) == 0:
-        print("========================")
-        return 0
-    intersec = set(target_value).intersection(set(gold_entities_set))
+    res_answer = set(res_answer)
+    true_answer = set(true_answer)
+    intersec = set(res_answer).intersection(set(true_answer))
+    if len(true_answer) == 0:
+        return 0.0
     if type == "jaccard":
         union = set([])
-        union.update(target_value)
-        union.update(gold_entities_set)
-        true_reward = float(len(intersec)) / float(len(gold_entities_set))
+        union.update(res_answer)
+        union.update(true_answer)
+        true_reward = float(len(intersec)) / float(len(union))
     elif type == "recall":
-        true_reward = float(len(target_value)) / float(len(gold_entities_set))
+        true_reward = float(len(intersec)) / float(len(true_answer))
     elif type == "f1":
-        if len(target_value) == 0:
+        if len(res_answer) == 0:
             prec = 0.0
         else:
-            prec = float(len(intersec)) / float(len(target_value))
-        rec = float(len(intersec)) / float(len(gold_entities_set))
+            prec = float(len(intersec)) / float(len(res_answer))
+        rec = float(len(intersec)) / float(len(true_answer))
         if prec == 0 and rec == 0:
-            true_reward = 0
+            true_reward = 0.0
         else:
             true_reward = (2.0 * prec * rec) / (prec + rec)
     return true_reward
@@ -1217,10 +1249,16 @@ if __name__ == "__main__":
     WebQSPList_Correct = []
     WebQSPList_Incorrect = []
     no_gold_answer = []
+    AnswerType_Value_idlist = []
+    to_add_list = []
     result_list = []
     no_x_list = []
     json_errorlist = []
     true_count = 0
+
+    # correct
+    with open("WebQSPList_Correct.json", "r", encoding='UTF-8') as correct_list:
+        WebQSPList_Correct = json.load(correct_list)
 
     errorlist = []
     with open("WebQSP.train.json", "r", encoding='UTF-8') as webQaTrain:
@@ -1243,138 +1281,157 @@ if __name__ == "__main__":
             total_reward_precision = 0
             total_reward_recall = 0
 
-            for q in process_questions:
-                question = q["ProcessedQuestion"]
-                Answers = []
-                id = q["QuestionId"]
-                reward = 0.0
-                answerList = q["Parses"][0]["Answers"]
-                for an in answerList:
-                    Answers.append(an['AnswerArgument'])
-                if len(Answers) == 0:
-                    print(id, "no gold answer")
-                    no_gold_answer.append(id)
-
-                sparql = q["Parses"][0]["Sparql"]
-                mypair = Qapair(question, Answers, sparql)
-
-                if id == "WebQTrn-0":  # test one
-                # if True: # test all
-                    # test seq
-                    true_answer = mypair.answer
-                    test_sparql = mypair.sparql
-                    seq = processSparql(test_sparql, id)
-                    symbolic_exe = Symbolics_WebQSP(seq)
-                    answer = symbolic_exe.executor()
-                    # print("answer: ", answer)
-                    # print("true_answer: ", true_answer)
-                    try:
-                        key = "?x"
-                        if key in answer:
-                            res_answer = answer[key]
-                            reward = calc_01_reward_type(res_answer, true_answer, "f1")
-
-                            result_list.append({id: [seq, reward]})
-                            if reward != 1.0:
-                                result_list.append({id: list(res_answer)})
-                                result_list.append({id: list(true_answer)})
-
-                            reward_jaccard = calc_01_reward_type(res_answer, true_answer, "jaccard")
-                            reward_recall = calc_01_reward_type(res_answer, true_answer, "recall")
-                            reward_precision = calc_01_reward_type(res_answer, true_answer, "precision")
-                            test_count += 1
-                            if reward == 1.0:
-                                # print("correct!")
-
-                                # if get right answer, generate action sequence
-                                true_count += 1
-                                correct = QapairSeq(id, question, true_answer, sparql, seq)
-                                entity = set()
-                                relation = set()
-                                type = set()
-                                e_index = 1
-                                r_index = 1
-                                t_index = 1
-                                for srt in seq:
-                                    for k, v in srt.items():
-                                        if v[0] != "":
-                                            entity.add(v[0])
-                                        if v[1] != "":
-                                            relation.add(v[1])
-                                        if v[2] != "":
-                                            type.add(v[2])
-                                entity = list(entity)
-                                relation = list(relation)
-                                type = list(type)
-                                entity_mask = dict()
-                                relation_mask = dict()
-                                type_mask = dict()
-                                for e in entity:
-                                    dict_entity = {e: "ENTITY{0}".format(e_index)}
-                                    entity_mask.update(dict_entity)
-                                    e_index += 1
-                                for r in relation:
-                                    dict_relation = {r: "RELATION{0}".format(r_index)}
-                                    relation_mask.update(dict_relation)
-                                    r_index += 1
-                                for t in type:
-                                    dict_type = {t: "TYPE{0}".format(t_index)}
-                                    type_mask.update(dict_type)
-                                    t_index += 1
-                                mask_action_sequence_list = []
-
-                                for srt in seq:
-                                    mask_set = {}
-                                    masklist = []
-                                    a_mask = ""
-                                    e_mask = ""
-                                    r_mask = ""
-                                    t_mask = ""
-                                    for k,v in srt.items():
-                                        a_mask = k
-                                        e_mask_key = v[0]
-                                        r_mask_key = v[1]
-                                        t_mask_key = v[2]
-                                        e_mask = entity_mask[e_mask_key] if e_mask_key != "" else ""
-                                        r_mask = relation_mask[r_mask_key] if r_mask_key != "" else ""
-                                        t_mask = type_mask[t_mask_key] if t_mask_key != "" else ""
-                                    if a_mask != "":
-                                        masklist.append(e_mask)
-                                        masklist.append(r_mask)
-                                        masklist.append(t_mask)
-                                        mask_set = {a_mask : masklist}
-                                        mask_action_sequence_list.append(mask_set)
-                                if id != "" and question != "" and seq != "":
-                                    correct_item = WebQSP(id, question, seq, entity, relation, type,entity_mask,
-                                                          relation_mask, type_mask, mask_action_sequence_list, answerList)
-                                # print(question)
-                                # print(answer)
-                                WebQSPList_Correct.append(correct_item)
-                            else:
-                                if b_print:
-                                    print('incorrect!', reward)
-                                    print("answer", answer)
-                                    print("seq", seq)
-                                    print("true_answer", true_answer)
-                                    print("id", id)
-                                    print(" ")
-                                WebQSPList_Incorrect.append(id)
-                                errorlist.append(id)
-                                json_errorlist.append(q)
-
-                            total_reward += reward
-                            total_reward_jaccard += reward_jaccard
-                            total_reward_recall += reward_recall
-                            total_reward_precision += reward_precision
+            all_count = 0
+            for parse_q in process_questions:
+                question = parse_q["ProcessedQuestion"]
+                for q in parse_q["Parses"]:
+                    id = q["ParseId"]
+                    if id in WebQSPList_Correct:
+                        continue
+                    all_count += 1
+                    sparql = q["Sparql"]
+                    reward = 0.0
+                    answerList = q["Answers"]
+                    if len(answerList) == 0:
+                        print(id, "no gold answer")
+                        no_gold_answer.append(id)
+                    else:
+                        Answers = []
+                        for an in answerList:
+                            Answers.append(an['AnswerArgument'])
+                        answer_type = answerList[0]['AnswerType']
+                        if answer_type == "Value":
+                            AnswerType_Value_idlist.append(id)
+                            sr_list = processSparql_value(sparql)
+                            if len(sr_list) == 2:
+                                for an in Answers:
+                                    to_add_list.append(str(sr_list[0] + '**' + sr_list[1] + '**' + an))
                         else:
-                            no_x_list.append(id)
-                    except Exception as exception:
-                        print(exception)
-                        pass
+                            # assert answer_type == "Entity"
+                            # continue
+                            mypair = Qapair(question, Answers, sparql)
 
-                WebQSPList.append(mypair)
-                # result_list.append({id: [seq, res_answer, true_answer, reward]})
+                            # if id == "WebQTrn-193.P0" or id == "WebQTrn-194.P0":  # test one
+                            if True:    # test all
+                                # test seq
+                                true_answer = mypair.answer
+                                test_sparql = mypair.sparql
+                                seq = processSparql(test_sparql, id)
+                                # print(id)
+                                # print(len(seq))
+                                if len(seq) >= 5:
+                                    continue
+                                symbolic_exe = Symbolics_WebQSP(seq)
+                                answer = symbolic_exe.executor()
+                                # print("answer: ", answer)
+                                # print("true_answer: ", true_answer)
+                                try:
+                                    key = "?x"
+                                    if key in answer:
+                                        res_answer = answer[key]
+                                        reward = calc_01_reward_type(res_answer, true_answer, "f1")
+                                        result_list.append({id: [seq, reward]})
+                                        if reward != 1.0:
+                                            result_list.append({id: list(res_answer)})
+                                            result_list.append({id: list(true_answer)})
 
+                                        reward_jaccard = calc_01_reward_type(res_answer, true_answer, "jaccard")
+                                        reward_recall = calc_01_reward_type(res_answer, true_answer, "recall")
+                                        reward_precision = calc_01_reward_type(res_answer, true_answer, "precision")
+                                        test_count += 1
+                                        if reward == 1.0:
+                                            # print("correct!")
+
+                                            # if get right answer, generate action sequence
+                                            true_count += 1
+                                            correct = QapairSeq(id, question, true_answer, sparql, seq)
+                                            entity = set()
+                                            relation = set()
+                                            type = set()
+                                            e_index = 1
+                                            r_index = 1
+                                            t_index = 1
+                                            for srt in seq:
+                                                for k, v in srt.items():
+                                                    if v[0] != "":
+                                                        entity.add(v[0])
+                                                    if v[1] != "":
+                                                        relation.add(v[1])
+                                                    if v[2] != "":
+                                                        type.add(v[2])
+                                            entity = list(entity)
+                                            relation = list(relation)
+                                            type = list(type)
+                                            entity_mask = dict()
+                                            relation_mask = dict()
+                                            type_mask = dict()
+                                            for e in entity:
+                                                dict_entity = {e: "ENTITY{0}".format(e_index)}
+                                                entity_mask.update(dict_entity)
+                                                e_index += 1
+                                            for r in relation:
+                                                dict_relation = {r: "RELATION{0}".format(r_index)}
+                                                relation_mask.update(dict_relation)
+                                                r_index += 1
+                                            for t in type:
+                                                dict_type = {t: "TYPE{0}".format(t_index)}
+                                                type_mask.update(dict_type)
+                                                t_index += 1
+                                            mask_action_sequence_list = []
+
+                                            for srt in seq:
+                                                mask_set = {}
+                                                masklist = []
+                                                a_mask = ""
+                                                e_mask = ""
+                                                r_mask = ""
+                                                t_mask = ""
+                                                for k,v in srt.items():
+                                                    a_mask = k
+                                                    e_mask_key = v[0]
+                                                    r_mask_key = v[1]
+                                                    t_mask_key = v[2]
+                                                    e_mask = entity_mask[e_mask_key] if e_mask_key != "" else ""
+                                                    r_mask = relation_mask[r_mask_key] if r_mask_key != "" else ""
+                                                    t_mask = type_mask[t_mask_key] if t_mask_key != "" else ""
+                                                if a_mask != "":
+                                                    masklist.append(e_mask)
+                                                    masklist.append(r_mask)
+                                                    masklist.append(t_mask)
+                                                    mask_set = {a_mask : masklist}
+                                                    mask_action_sequence_list.append(mask_set)
+                                            if id != "" and question != "" and seq != "":
+                                                correct_item = WebQSP(id, question, seq, entity, relation, type,entity_mask,
+                                                                      relation_mask, type_mask, mask_action_sequence_list, answerList)
+                                            # print(question)
+                                            # print(answer)
+                                            WebQSPList_Correct.append(id)
+                                        else:
+                                            if b_print:
+                                                print('incorrect!', reward)
+                                                print("answer", answer)
+                                                print("seq", seq)
+                                                print("true_answer", true_answer)
+                                                print("id", id)
+                                                print(" ")
+                                            WebQSPList_Incorrect.append(id)
+                                            errorlist.append(id)
+                                            json_errorlist.append(q)
+
+                                        total_reward += reward
+                                        total_reward_jaccard += reward_jaccard
+                                        total_reward_recall += reward_recall
+                                        total_reward_precision += reward_precision
+                                    else:
+                                        no_x_list.append(id)
+                                except Exception as exception:
+                                    print(exception)
+                                    pass
+
+                            WebQSPList.append(mypair)
+                            # result_list.append({id: [seq, res_answer, true_answer, reward]})
+
+            print('all_count', all_count)
             questions_count = len(process_questions)
             mean_reward_jaccard = total_reward_jaccard / questions_count
             mean_reward_recall = total_reward_recall / questions_count
@@ -1411,8 +1468,20 @@ if __name__ == "__main__":
             fileObject.write(jsondata)
             fileObject.close()
 
+            # AnswerType_Value_idlist
+            jsondata = json.dumps(AnswerType_Value_idlist, indent=1)
+            fileObject = open('AnswerType_Value_idlist.json', 'w')
+            fileObject.write(jsondata)
+            fileObject.close()
+
+            # to_add_list
+            jsondata = json.dumps(to_add_list, indent=1)
+            fileObject = open('to_add_list.json', 'w')
+            fileObject.write(jsondata)
+            fileObject.close()
 
             # jsondata = json.dumps(WebQSPList_Correct, indent=1, default=WebQSP.obj_2_json)
-            # fileObject = open('right_answer_reorder_mask.json', 'w')
-            # fileObject.write(jsondata)
-            # fileObject.close()
+            jsondata = json.dumps(WebQSPList_Correct, indent=1)
+            fileObject = open('WebQSPList_Correct1.json', 'w')
+            fileObject.write(jsondata)
+            fileObject.close()
