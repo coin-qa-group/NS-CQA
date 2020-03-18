@@ -29,6 +29,7 @@ class Interpreter():
     def is_kb_consistent(self, e, r):
         print("find", e, r)
         if e in self.freebase_kb and r in self.freebase_kb[e]:
+            print("find", e, r, self.freebase_kb[e][r])
             return True
         else:
             return False
@@ -203,7 +204,7 @@ class Interpreter():
         try:
             if isinstance(e, list):
                 for entity in e:
-                    if entity in self.freebase_kb and r in self.freebase_kb[entity]:
+                    if self.is_kb_consistent(entity, r):
                         # print("execute_joint", entity, r, self.freebase_kb[entity][r])
                         temp_set.update(set(self.freebase_kb[entity][r]))
                 return list(temp_set), 0
@@ -252,11 +253,11 @@ class Interpreter():
             return list(temp_set), 1
 
     def map_value(self, e, r):
-        temp_set = set([])
+        temp_set = {}
         for e_item in e:
             if self.is_kb_consistent(e_item, r):
-                temp_set.update({e_item: self.freebase_kb[e_item][r]})
-        return temp_set
+                temp_set[e_item] = self.freebase_kb[e_item][r]
+        return temp_set, 0
 
 @app.route('/post', methods=['POST'])
 def post_res():
@@ -303,7 +304,7 @@ if __name__ == '__main__':
     print("loading knowledge base...")
     interpreter = Interpreter("")
     interpreter.freebase_kb = json.load(
-        open('webQSP_freebase_subgraph.json'))
+        open('../../data/webqsp_data/webQSP_freebase_subgraph.json'))
     print("loading knowledge down, start the server")
     app.run(host='127.0.0.1', port=5001, use_debugger=True)
     # app.run(host='10.201.34.3', port=5001, use_debugger=True)

@@ -268,7 +268,7 @@ def processSparql(sparql_str, id="empty"):
                 action_type = "A8" if "ORDER BY DESC" in untreated_str else "A7"
                 start_index = untreated_str.find("?")
                 if start_index != -1:
-                    end_index = untreated_str.find(")", start_index)
+                    end_index = untreated_str.find(")", start_index) if action_type == "A8" else len(untreated_str)
                     if end_index != -1:
                         var_name = untreated_str[start_index:end_index]
                         if index < len(untreated_list):
@@ -276,7 +276,7 @@ def processSparql(sparql_str, id="empty"):
                                 limit_n = int(untreated_list[index+1].replace("LIMIT ", ""))
                                 for to_find_var in untreated_list:
                                     if var_name in to_find_var:
-                                        var_list = to_find_var.split(" ")
+                                        var_list = to_find_var.strip().split(" ")
                                         relative_var = var_list[0]
                                         relative_r = var_list[1].replace("ns:", "")
                                         action_item = Action(action_type, relative_var, relative_r, limit_n)
@@ -454,6 +454,19 @@ def add_next_variable(sparql_list, variable_key, reorder_sparql_list):
             return
 
     next_variable = ""
+
+    for sql in variable_sql_list:
+        if sql.action_type == "A8" or sql.action_type == "A7":
+            reorder_sparql_list.append(sql)
+            sparql_list.remove(sql)
+            variable_sql_list.remove(sql)
+
+    for sql in variable_sql_list:
+        if sql.action_type == "A9":
+            reorder_sparql_list.append(sql)
+            sparql_list.remove(sql)
+            variable_sql_list.remove(sql)
+
     for sql in variable_sql_list:
         if sql.action_type == "A3":
             reorder_sparql_list.append(sql)

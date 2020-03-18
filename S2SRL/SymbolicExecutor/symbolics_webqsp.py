@@ -1,19 +1,26 @@
 # -*- coding: utf-8 -*-
 import json
 import re
+
 try:
     from urllib import urlencode
 except ImportError:
     from urllib.parse import urlencode
 import requests
+
+
 def get_id(idx):
     return int(idx[1:])
+
+
 from flask import Flask, request, jsonify
+
 app = Flask(__name__)
 # Remote Server
 # post_url = "http://10.201.34.3:5002/post"
 # # local server
 post_url = "http://127.0.0.1:5001/post"
+
 
 class Symbolics_WebQSP():
 
@@ -31,7 +38,7 @@ class Symbolics_WebQSP():
             self.type_dict = None
         self.seq = seq
         self.answer = {}
-        self.temp_variable_list = []    # to store temp variable
+        self.temp_variable_list = []  # to store temp variable
         self.temp_set = set([])
         self.temp_bool_dict = {}
 
@@ -44,7 +51,7 @@ class Symbolics_WebQSP():
                     continue
                 e = symbolic[key][0].strip()
                 r = symbolic[key][1].strip()
-                t = symbolic[key][2].strip()
+                t = str(symbolic[key][2]).strip()
                 # The execution result from A1 is in dict format.
                 # A1: Select(e，r，t)
                 if ("A1" in symbolic):
@@ -63,7 +70,7 @@ class Symbolics_WebQSP():
                         self.answer = temp_result
                         self.temp_bool_dict = temp_result
                     except:
-                        print('ERROR! The action is Select_e(%s,%s,%s).' %(e,r,t))
+                        print('ERROR! The action is Select_e(%s,%s,%s).' % (e, r, t))
                     finally:
                         self.print_answer()
                 # A3: filter answer
@@ -96,23 +103,23 @@ class Symbolics_WebQSP():
                     try:
                         self.answer = self.map_value(e, r, t)
                     except:
-                        print('ERROR! The action is map_value(%s,%s,%s).' % (e,r,t))
+                        print('ERROR! The action is map_value(%s,%s,%s).' % (e, r, t))
                     finally:
                         self.print_answer()
                 # A7: order_value_limit: order e by value and get top n
                 elif ("A7" in symbolic):
                     try:
-                        self.answer = self.order_value_limit(e, r, t)
+                        self.answer = self.order_value_limit(e, r, t, False)
                     except:
-                        print('ERROR! The action is order_value_limit(%s,%s,%s).' % (e,r,t))
+                        print('ERROR! The action is order_value_limit(%s,%s,%s).' % (e, r, t))
                     finally:
                         self.print_answer()
-                # A7: order_desc_value_limit: order desc e by value and get top n
+                # A7: order_value_desc_limit: order desc e by value and get top n
                 elif ("A8" in symbolic):
                     try:
-                        self.answer = self.order_desc_value_limit(e, r, t)
+                        self.answer = self.order_value_limit(e, r, t, True)
                     except:
-                        print('ERROR! The action is Union(%s,%s,%s).' % (e,r,t))
+                        print('ERROR! The action is order_value_desc_limit(%s,%s,%s).' % (e, r, t))
                     finally:
                         self.print_answer()
                 # A9: Union(e，r，t)
@@ -120,7 +127,7 @@ class Symbolics_WebQSP():
                     try:
                         self.answer = self.union(e, r, t)
                     except:
-                        print('ERROR! The action is Inter(%s,%s,%s).' % (e,r,t))
+                        print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
                     finally:
                         self.print_answer()
                 else:
@@ -143,7 +150,7 @@ class Symbolics_WebQSP():
                 jsonpost = json.dumps(json_pack)
                 # result_content = requests.post(post_url,json=json_pack)
                 # print(result_content)
-                #print(jsonpost)
+                # print(jsonpost)
                 content, content_result = requests.post(post_url, json=jsonpost).json()['content']
                 if content is not None and content_result == 0:
                     content = set(content)
@@ -262,7 +269,7 @@ class Symbolics_WebQSP():
                     else:
                         content = set([])
                     intermediate_result = {t: content}
-            except :
+            except:
                 print("ERROR for command: joint_str(%s,%s,%s)" % (e, r, t))
             finally:
                 return intermediate_result
@@ -283,7 +290,7 @@ class Symbolics_WebQSP():
                     for answer_item in self.answer[e]:
                         if (answer_item != t):
                             answer_list.append(answer_item)
-                    intermediate_result = {e : answer_list}
+                    intermediate_result = {e: answer_list}
             except:
                 print("ERROR for command: filter_not_equal(%s,%s,%s)" % (e, r, t))
             finally:
@@ -310,38 +317,56 @@ class Symbolics_WebQSP():
                     content, content_result = requests.post(post_url, json=jsonpost).json()['content']
                     # print(content)
                     if content is not None and content_result == 0:
-                        content = set(content)
+                        content = content
                     else:
-                        content = set([])
-                    intermediate_result = {e: content}
+                        content = {}
+                    intermediate_result = content
             except:
                 print("ERROR for command: map_value(%s,%s,%s)" % (e, r, t))
             finally:
                 return intermediate_result
 
-    # A7
-    def order_value_limit(self, e, n):
-        e_list = list(e)
-        e_list = e_list[0:n]
-        return e_list
+    # A7 A8
+    def order_value_limit(self, e, r, n, b_reverse):
+        intermediate_result = {}
+        if e == "" or r == "" or int(n) is None:
+            return {}
+        elif not isinstance(self.answer, dict):
+            return {}
+        else:
+            try:
+                result_list = []
+                e_list_dict = self.map_value(e, r, "")
+                e_list = list(e_list_dict.items())
 
-    # A8
-    def order_value_desc_limit(self, e, n):
-        e_list = list(e)
-        e_list = e_list[0:n]
+                # todo sort e_list
 
-        return e_list
+                print(type(e_list))
+                if len(e_list) >= int(n):
+                    e_list = sorted(e_list, key=lambda x: x[1], reverse=True)
+                    e_list = e_list[:int(n)]
+
+                    for v_key in e_list:
+                        result_list.append(v_key[0])
+                intermediate_result = {e: result_list}
+            except:
+                print("ERROR for command: filter_not_equal(%s,%s,%s)" % (e, r, t))
+            finally:
+                return intermediate_result
+
 
     # A9
     def union(self, e, r, t):
-        #print("A8:", e, r, t)
+        # print("A8:", e, r, t)
         if e == "": return {}
         if not e.startswith("Q"): return {}
         answer_dict = self.answer
-        if type(answer_dict) == bool: return False
-        elif type(answer_dict) != dict: return {}
+        if type(answer_dict) == bool:
+            return False
+        elif type(answer_dict) != dict:
+            return {}
         try:
-            if e in answer_dict and answer_dict[e]!=None:
+            if e in answer_dict and answer_dict[e] != None:
                 temp_dict = self.select(e, r, t)
                 if e in temp_dict:
                     answer_dict[e] = set(answer_dict[e]) | set(temp_dict[e])
@@ -367,11 +392,10 @@ class Symbolics_WebQSP():
             return self.answer[a] > self.answer[b]
         return -1
 
-
     # A10
     def date_less_or_equal(self, e, r, date='2015-08-10'):
         intermediate_result = {}
-        if e == "" or r =="" or date == "":
+        if e == "" or r == "" or date == "":
             return {}
         elif not isinstance(self.answer, dict):
             return {}
@@ -397,7 +421,6 @@ class Symbolics_WebQSP():
                 print("ERROR for command: date_less_or_equal(%s, %s)" % (e, date))
             finally:
                 return intermediate_result
-
 
     # A11
     def date_greater_or_equal(self, e, r, date='2015-08-10'):
@@ -440,7 +463,7 @@ class Symbolics_WebQSP():
         return {t: set(max)}
 
     def select_all(self, et, r, t):
-        #print("A2:", et, r, t)
+        # print("A2:", et, r, t)
         content = {}
         if et == "" or r == "" or t == "":
             return content
@@ -528,14 +551,16 @@ class Symbolics_WebQSP():
 
     # union set e to set t
     def union2t(self, e, r, t):
-        #print("A9:", e, r, t)
+        # print("A9:", e, r, t)
         if e == "" or t == "": return {}
         if not e.startswith("Q"): return {}
         answer_dict = self.answer
-        if type(answer_dict) == bool: return False
-        elif type(answer_dict) != dict: return {}
+        if type(answer_dict) == bool:
+            return False
+        elif type(answer_dict) != dict:
+            return {}
         try:
-            if e in answer_dict and answer_dict[e]!=None:
+            if e in answer_dict and answer_dict[e] != None:
                 temp_dict = self.select(e, r, t)
                 if e in temp_dict:
                     answer_dict[e] = set(answer_dict[e]) | set(temp_dict[e])
@@ -563,15 +588,15 @@ class Symbolics_WebQSP():
         else:
             return []
 
-    def count(self,e= None):
-        #print("A11:Count")
+    def count(self, e=None):
+        # print("A11:Count")
         try:
             # list or set
             if type(self.answer) == type([]) or type(self.answer) == type(set()):
                 return len(self.answer)
             # dict
             if type(self.answer) == type({}):
-                if e!='' and e:
+                if e != '' and e:
                     if e not in self.answer and len(self.answer.keys()) == 1:
                         return len(self.answer.popitem())
                     elif e in self.answer:
@@ -584,7 +609,7 @@ class Symbolics_WebQSP():
             else:
                 return 0
         except:
-            print("ERROR! THE ACTION IS count(%s)!" %e)
+            print("ERROR! THE ACTION IS count(%s)!" % e)
             return 0
 
     # TODO: NOT TESTED
@@ -618,7 +643,7 @@ class Symbolics_WebQSP():
         answer_keys = []
         if type(self.answer) == dict:
             for k, v in self.answer.items():
-                #print k,len(v)
+                # print k,len(v)
                 if len(v) == int(N):
                     answer_keys.append(k)
         return answer_keys
