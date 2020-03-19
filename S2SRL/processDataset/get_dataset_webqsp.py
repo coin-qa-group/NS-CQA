@@ -270,7 +270,7 @@ def processSparql(sparql_str, id="empty"):
                 if start_index != -1:
                     end_index = untreated_str.find(")", start_index) if action_type == "A8" else len(untreated_str)
                     if end_index != -1:
-                        var_name = untreated_str[start_index:end_index]
+                        var_name = untreated_str[start_index:end_index-1]
                         if index < len(untreated_list):
                             if untreated_list[index+1].startswith("LIMIT "):
                                 limit_n = int(untreated_list[index+1].replace("LIMIT ", ""))
@@ -587,8 +587,8 @@ def process_webqsp_RL():
         for q in parse_q["Parses"]:
             id = q["ParseId"]
             # if id in WebQSPList_Correct or id in to_handle_list:
-            if id not in to_test_by_hand_list:
-                continue
+            # if id not in to_test_by_hand_list:
+            #     continue
             if b_print:
                 print(id)
             all_count += 1
@@ -619,7 +619,7 @@ def process_webqsp_RL():
                         test_sparql = sparql
                         seq = processSparql(test_sparql, id)
                         if b_print:
-                            print(len(seq))
+                            print(seq)
                         symbolic_exe = Symbolics_WebQSP(seq)
                         answer = symbolic_exe.executor()
                         if b_print:
