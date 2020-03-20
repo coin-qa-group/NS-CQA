@@ -339,9 +339,6 @@ class Symbolics_WebQSP():
                 e_list_dict = self.map_value(e, r, "")
                 e_list = list(e_list_dict.items())
 
-                # todo sort e_list
-
-                print(type(e_list))
                 if len(e_list) >= int(n):
                     e_list = sorted(e_list, key=lambda x: x[1], reverse=True)
                     e_list = e_list[:int(n)]
@@ -350,7 +347,10 @@ class Symbolics_WebQSP():
                         result_list.append(v_key[0])
                 intermediate_result = {e: result_list}
             except:
-                print("ERROR for command: filter_not_equal(%s,%s,%s)" % (e, r, t))
+                if b_reverse:
+                    print("ERROR for command: order_value_limit(%s,%s,%s)" % (e, r, n))
+                else:
+                    print("ERROR for command: order_value_desc_limit(%s,%s,%s)" % (e, r, n))
             finally:
                 return intermediate_result
 

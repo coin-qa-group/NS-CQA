@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, '../SymbolicExecutor/')
 from symbolics_webqsp import Symbolics_WebQSP
 
-b_print = True
+b_print = False
 LINE_SIZE = 100000
 special_counting_characters = {'-','|','&'}
 
@@ -372,53 +372,9 @@ def isValidAction(action_item):
            and (str_t.startswith("m.") or str_t.startswith("?") or str_t == "" or isinstance(t, int))
 
 def reorder(sparql_list, answer_keys):
-    count = 0
-    final_len = len(sparql_list)
     reorder_sparql_list = []
-
-    last_variable = ""
-    # while len(sparql_list) != 0:
     for key in answer_keys:
-        # has_last_select = False
         add_next_variable(sparql_list, key, reorder_sparql_list)
-        # print(reorder_sparql_list)
-            # contains key
-            # 提取包含key并排序
-            # for action_item in sparql_list:
-            #     # last select action of answer key
-            #     if action_item.t == key:
-            #         reorder_sparql_list.append(action_item)
-            #         sparql_list.remove(action_item)
-            #         break
-            #
-            #         if action_item.e.startswith('?'):
-            #             last_variable = action_item.e
-            #         has_last_select = True
-            #     if has_last_select:
-            #         seq = action_item.to_str()
-            #         print (seq)
-            #         if len(sparql_list) == 1:
-            #             reorder_sparql_list.append(action_item)
-            #             sparql_list.remove(action_item)
-            #             break
-            #         if "?x" in seq:
-            #             if seq.count("?") == 1:
-            #                 reorder_sparql_list.append(action_item)
-            #             elif seq.count("?") == 2:
-            #                 reorder_sparql_list.append(action_item)
-            #                 # define next variable
-            #                 next_variable = action_item.e if (action_item.t == "?x") else action_item.t
-            #             sparql_list.remove(action_item)
-            #             break
-            #         elif next_variable != "" and next_variable in seq:
-            #             if seq.count("?") == 1:
-            #                 reorder_sparql_list.append(action_item)
-            #             elif seq.count("?") == 2:
-            #                 reorder_sparql_list.append(action_item)
-            #                 # define next variable
-            #                 next_variable = action_item.e if (action_item.t == next_variable) else action_item.t
-            #             sparql_list.remove(action_item)
-            #             break
     reorder_sparql_list.reverse()
     return reorder_sparql_list
 
@@ -557,6 +513,8 @@ def process_webqsp_RL():
     true_count = 0
     errorlist = []
 
+    final_data_RL = {}
+
     with open("WebQSPList_Correct.json", "r", encoding='UTF-8') as correct_list:
         WebQSPList_Correct = json.load(correct_list)
     with open("WebQSP.train.json", "r", encoding='UTF-8') as webQaTrain:
@@ -586,7 +544,8 @@ def process_webqsp_RL():
         question = parse_q["ProcessedQuestion"]
         for q in parse_q["Parses"]:
             id = q["ParseId"]
-            # if id in WebQSPList_Correct or id in to_handle_list:
+            if id not in WebQSPList_Correct:
+                continue
             # if id not in to_test_by_hand_list:
             #     continue
             if b_print:
@@ -706,13 +665,10 @@ def process_webqsp_RL():
                                     # print(question)
                                     # print(answer)
                                     WebQSPList_Correct.append(id)
+                                    final_data_RL.update(correct_item.obj_2_json())
                                 else:
                                     if b_print:
                                         print('incorrect!', reward)
-                                        print("answer", answer)
-                                        print("seq", seq)
-                                        print("true_answer", true_answer)
-                                        print("id", id)
                                         print(" ")
                                     WebQSPList_Incorrect.append(id)
                                     errorlist.append(id)
@@ -777,6 +733,12 @@ def process_webqsp_RL():
     fileObject.write(jsondata)
     fileObject.close()
 
+    # final_data_RL
+    jsondata = json.dumps(final_data_RL, indent=1)
+    fileObject = open('final_data_RL.json', 'w')
+    fileObject.write(jsondata)
+    fileObject.close()
+
 
 # Get training data for sequence2sequence.
 def getTrainingDatasetForPytorch_seq2seq_webqsp():
@@ -801,7 +763,8 @@ def getTrainingDatasetForPytorch_seq2seq_webqsp():
             if len(actions) > 0:
                 count += 1
                 action_string = ''
-                action = actions[0]
+                action = actions
+                action = eval(str(action))
                 for dict in action:
                     for temp_key, temp_value in dict.items():
                         action_string += temp_key + ' ( '
@@ -887,5 +850,5 @@ def getTrainingDatasetForPytorch_seq2seq_webqsp():
 
 if __name__ == "__main__":
     print("start process webqsp dataset")
-    process_webqsp_RL()
-    # getTrainingDatasetForPytorch_seq2seq_webqsp()
+    # process_webqsp_RL()
+    getTrainingDatasetForPytorch_seq2seq_webqsp()
