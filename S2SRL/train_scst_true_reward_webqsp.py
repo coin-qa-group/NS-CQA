@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import time
 import ptan
 
-SAVES_DIR = "../data/saves/webqsp_rl_infchain_1"
+SAVES_DIR = "../data/saves/webqsp_rl_03201645"
 
 BATCH_SIZE = 16
 LEARNING_RATE = 1e-4
@@ -24,9 +24,8 @@ MAX_TOKENS = 40
 TRAIN_RATIO = 0.985
 GAMMA = 0.05
 
-DIC_PATH = '../data/webqsp_data/share.question'
-# TRAIN_QUESTION_ANSWER_PATH = '../data/webqsp_data/RL_mask_even/RL_train_TR_sub_webqsp.json'
-TRAIN_QUESTION_ANSWER_PATH = '../data/webqsp_data/RL_mask_even/RL_train_TR_sub_webqsp_infchain_1.json'
+DIC_PATH = '../data/webqsp_data/share.webqsp.question'
+TRAIN_QUESTION_ANSWER_PATH = '../data/webqsp_data/WEBQSP_ANNOTATIONS_train.json'
 log = logging.getLogger("train")
 
 
@@ -61,7 +60,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/webqsp/crossent_even_1%_att=1/pre_bleu_0.938_07.dat', '-n=rl_even_adaptive_1%_att=1', '-s=5', '-a=0', '--att=1', '--lstm=1']
+    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/webqsp/crossent_webqsp/epoch_030_0.986_0.947.dat', '-n=rl03201645_att=1', '-s=5', '-a=0', '--att=1', '--lstm=1']
 
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()

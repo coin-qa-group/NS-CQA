@@ -977,7 +977,6 @@ if __name__ == "__main__":
     # getTrainingDatasetForRl()
     # getAllQustionsAndAnswers()
     # print(getShareVocabulary())
-    getShareVocabularyForWebQSP()
     # getAllQustionsAndAnswersFor944K()
     # getShareVocabularyFor944K()
 

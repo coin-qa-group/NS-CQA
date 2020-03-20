@@ -35,7 +35,7 @@ class Qapair(object):
         }
 
 class WebQSP(object):
-    def __init__(self, id, question, action_sequence_list, entity, relation, type, entity_mask, relation_mask, type_mask, mask_action_sequence_list, answerlist):
+    def __init__(self, id, question, action_sequence_list, entity, relation, type, entity_mask, relation_mask, type_mask, mask_action_sequence_list, answerlist, input_str):
         self.id = id
         self.question = question
         self.action_sequence_list = action_sequence_list
@@ -47,6 +47,7 @@ class WebQSP(object):
         self.type_mask = type_mask
         self.mask_action_sequence_list = mask_action_sequence_list
         self.answerlist = answerlist
+        self.input_str = input_str
 
     def obj_2_json(obj):
         return {
@@ -61,6 +62,7 @@ class WebQSP(object):
                 "type_mask": obj.type_mask,
                 "mask_action_sequence_list": obj.mask_action_sequence_list,
                 "answers": obj.answerlist,
+                "input": obj.input_str
             }
         }
 
@@ -533,7 +535,7 @@ def process_webqsp_RL():
     all_questions = train_questions + test_questions
     small_questions = train_questions[0:9] + test_questions[0:9]
 
-    process_questions = all_questions
+    process_questions = test_questions
     # total rewards
     total_reward = 0
     test_count = 0
@@ -661,9 +663,39 @@ def process_webqsp_RL():
                                             mask_set = {a_mask: masklist}
                                             mask_action_sequence_list.append(mask_set)
                                     if id != "" and question != "" and seq != "":
+
+                                        question_string = '<E> '
+                                        if len(entity_mask) > 0:
+                                            for entity_key, entity_value in entity_mask.items():
+                                                if str(entity_value) != '':
+                                                    question_string += str(entity_value) + ' '
+                                        question_string += '</E> <R> '
+                                        if len(relation_mask) > 0:
+                                            for relation_key, relation_value in relation_mask.items():
+                                                if str(relation_value) != '':
+                                                    question_string += str(relation_value) + ' '
+                                        question_string += '</R> <T> '
+                                        if len(type_mask) > 0:
+                                            for type_key, type_value in type_mask.items():
+                                                if str(type_value) != '':
+                                                    question_string += str(type_value) + ' '
+                                        question_string += '</T> '
+
+                                        question_token = str(question).lower().replace('?', '')
+                                        question_token = question_token.replace(',', ' ')
+                                        question_token = question_token.replace(':', ' ')
+                                        question_token = question_token.replace('(', ' ')
+                                        question_token = question_token.replace(')', ' ')
+                                        question_token = question_token.replace('"', ' ')
+                                        question_token = question_token.strip()
+                                        question_string += question_token
+                                        question_string = question_string.strip()
+                                        # question_tokens = question_string.strip().split(' ')
+                                        # question_tokens_set = set(question_tokens)
+                                        # questionSet = questionSet.union(question_tokens_set)
                                         correct_item = WebQSP(id, question, seq, entity, relation, type, entity_mask,
                                                               relation_mask, type_mask, mask_action_sequence_list,
-                                                              answerList)
+                                                              answerList, question_string)
                                     # print(question)
                                     # print(answer)
                                     WebQSPList_Correct.append(id)
@@ -737,7 +769,7 @@ def process_webqsp_RL():
 
     # final_data_RL
     jsondata = json.dumps(final_data_RL, indent=1)
-    fileObject = open('final_data_RL.json', 'w')
+    fileObject = open('webqsp_test.json', 'w')
     fileObject.write(jsondata)
     fileObject.close()
 
@@ -1051,7 +1083,7 @@ def getTrainingDatasetForRlWebQSP():
 
 if __name__ == "__main__":
     print("start process webqsp dataset")
-    # process_webqsp_RL()
+    process_webqsp_RL()
     # getTrainingDatasetForPytorch_seq2seq_webqsp()
     # getTrainingDatasetForRlWebQSP()
-    getShareVocabularyForWebQSP()
+    # getShareVocabularyForWebQSP()
