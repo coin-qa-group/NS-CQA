@@ -3,10 +3,12 @@ import json
 import sys
 sys.path.insert(0, '../SymbolicExecutor/')
 from symbolics_webqsp import Symbolics_WebQSP
+from itertools import islice
 
 b_print = False
 LINE_SIZE = 100000
 special_counting_characters = {'-','|','&'}
+special_characters = {'(',')','-','|','&'}
 
 # action sequence
 class Action():
@@ -848,7 +850,208 @@ def getTrainingDatasetForPytorch_seq2seq_webqsp():
     fwActionDic.writelines(actionList)
     print("Getting webqsp seq2seq process Dataset is done!")
 
+def getShareVocabularyForWebQSP():
+    questionVocab = set()
+    actionVocab = set()
+    actionVocab_list = list()
+    with open('../../data/webqsp_data/mask/dic_py.question', 'r', encoding="UTF-8") as infile1, \
+            open('../../data/webqsp_data/mask/dic_rl.question', 'r', encoding="UTF-8") as infile2, \
+            open('../../data/webqsp_data/mask/dic_rl_tr.question', 'r', encoding="UTF-8") as infile3:
+        count = 0
+        while True:
+            lines_gen = list(islice(infile1, LINE_SIZE))
+            if not lines_gen:
+                break
+            for line in lines_gen:
+                token = line.strip()
+                questionVocab.add(token)
+                count = count + 1
+            print(count)
+        count = 0
+        while True:
+            lines_gen = list(islice(infile2, LINE_SIZE))
+            if not lines_gen:
+                break
+            for line in lines_gen:
+                token = line.strip()
+                questionVocab.add(token)
+                count = count + 1
+            print(count)
+        count = 0
+        while True:
+            lines_gen = list(islice(infile3, LINE_SIZE))
+            if not lines_gen:
+                break
+            for line in lines_gen:
+                token = line.strip()
+                questionVocab.add(token)
+                count = count + 1
+            print(count)
+    with open('../../data/webqsp_data/mask/dic_py.action', 'r', encoding="UTF-8") as infile1, open('../../data/webqsp_data/mask/dic_rl.action', 'r', encoding="UTF-8") as infile2:
+        count = 0
+        while True:
+            lines_gen = list(islice(infile1, LINE_SIZE))
+            if not lines_gen:
+                break
+            for line in lines_gen:
+                token = line.strip()
+                actionVocab.add(token)
+                count = count + 1
+            print(count)
+        count = 0
+        while True:
+            lines_gen = list(islice(infile2, LINE_SIZE))
+            if not lines_gen:
+                break
+            for line in lines_gen:
+                token = line.strip()
+                actionVocab.add(token)
+                count = count + 1
+            print(count)
+    action_size = 0
+    for word in actionVocab:
+        if word not in questionVocab and word not in special_characters:
+            actionVocab_list.append(word)
+            action_size += 1
+        elif word in special_characters:
+            actionVocab_list.append(word)
+            action_size += 1
+            if word in questionVocab:
+                questionVocab.remove(word)
+    questionVocab_list = list(questionVocab)
+    share_vocab_list = actionVocab_list + questionVocab_list
+    for i in range(len(share_vocab_list)):
+        share_vocab_list[i] = share_vocab_list[i] + '\n'
+    fw = open('../../data/webqsp_data/share.webqsp.question', 'w', encoding="UTF-8")
+    fw.writelines(share_vocab_list)
+    fw.close()
+    print("Writing SHARE VOCAB is done!")
+    return action_size
+
+# Get training data for REINFORCE (using annotation instead of denotation as reward).
+def getTrainingDatasetForRlWebQSP():
+    fwTrainQ = open('../../data/webqsp_data/mask/RL_train.question', 'w', encoding="UTF-8")
+    fwTrainA = open('../../data/webqsp_data/mask/RL_train.action', 'w', encoding="UTF-8")
+    fwTestQ = open('../../data/webqsp_data/mask/RL_test.question', 'w', encoding="UTF-8")
+    fwTestA = open('../../data/webqsp_data/mask/RL_test.action', 'w', encoding="UTF-8")
+    fwQuestionDic = open('../../data/webqsp_data/mask/dic_rl.question', 'w', encoding="UTF-8")
+    fwActionDic = open('../../data/webqsp_data/mask/dic_rl.action', 'w', encoding="UTF-8")
+    fwNoaction = open('../../data/webqsp_data/mask/no_action_question.txt', 'w', encoding="UTF-8")
+    no_action_question_list = list()
+    questionSet = set()
+    actionSet = set()
+    with open("../../data/webqsp_data/WEBQSP_ANNOTATIONS_full.json", 'r', encoding="UTF-8") as load_f:
+        count = 1
+        train_action_string_list, test_action_string_list, train_question_string_list, test_question_string_list = list(), list(), list(), list()
+        dict_list = list()
+        load_dict = json.load(load_f)
+        for key, value in load_dict.items():
+            try:
+                actions = eval(str(value['mask_action_sequence_list']))
+            except SyntaxError:
+                pass
+            if len(actions) > 0:
+                action_string_list = list()
+                count += 1
+                for action in actions:
+                    action_string = ''
+                    for temp_key, temp_value in action.items():
+                        action_string += temp_key + ' ( '
+                        for token in temp_value:
+                            if '-' in token:
+                                token = '- ' + token.replace('-','')
+                            action_string += str(token) + ' '
+                        action_string += ') '
+                    action_string = action_string.strip() + '\n'
+                    action_string_list.append(action_string)
+                question_string = '<E> '
+                entities = value['entity_mask']
+                if len(entities) > 0:
+                    for entity_key, entity_value in entities.items():
+                        if str(entity_value) != '':
+                            question_string += str(entity_value) + ' '
+                question_string += '</E> <R> '
+                relations = value['relation_mask']
+                if len(relations) > 0:
+                    for relation_key, relation_value in relations.items():
+                        if str(relation_value) !='':
+                            question_string += str(relation_value) + ' '
+                question_string += '</R> <T> '
+                types = value['type_mask']
+                if len(types) > 0:
+                    for type_key, type_value in types.items():
+                        if str(type_value) !='':
+                            question_string += str(type_value) + ' '
+                question_string += '</T> '
+                question_token = str(value['question']).lower().replace('?', '')
+                question_token = question_token.replace(',', ' ')
+                question_token = question_token.replace(':', ' ')
+                question_token = question_token.replace('(', ' ')
+                question_token = question_token.replace(')', ' ')
+                question_token = question_token.replace('"', ' ')
+                question_token = question_token.strip()
+                question_string += question_token
+                question_string = question_string.strip() + '\n'
+
+                question_tokens = question_string.strip().split(' ')
+                question_tokens_set = set(question_tokens)
+                questionSet = questionSet.union(question_tokens_set)
+
+                action_withkey_list = list()
+                if len(action_string_list) > 0:
+                    for action_string in action_string_list:
+                        action_tokens = action_string.strip().split(' ')
+                        action_tokens_set = set(action_tokens)
+                        actionSet = actionSet.union(action_tokens_set)
+                        action_withkey_list.append(str(key) + ' ' + action_string)
+
+                dict_temp = {}
+                dict_temp.setdefault('q', str(key) + ' ' + question_string)
+                dict_temp.setdefault('a', action_withkey_list)
+                dict_list.append(dict_temp)
+            elif len(actions) == 0:
+                no_action_question_list.append(str(key) + ' ' + str(value['question']).lower().replace('?', '').strip() + '\n')
+
+    train_size = int(len(dict_list))
+    # train_size = int(len(dict_list) * 0.95)
+    for i, item in enumerate(dict_list):
+        if item.get('a')[0].startswith('WebQTrn'):
+            for action_string in item.get('a'):
+                train_action_string_list.append(action_string)
+            train_question_string_list.append(item.get('q'))
+        else:
+            for action_string in item.get('a'):
+                test_action_string_list.append(action_string)
+            test_question_string_list.append(item.get('q'))
+    fwTrainQ.writelines(train_question_string_list)
+    fwTrainA.writelines(train_action_string_list)
+    fwTestQ.writelines(test_question_string_list)
+    fwTestA.writelines(test_action_string_list)
+    questionList = list()
+    for item in questionSet:
+        temp = str(item) + '\n'
+        if temp != '\n':
+            questionList.append(temp)
+    actionList = list()
+    for item in actionSet:
+        temp = str(item) + '\n'
+        if temp != '\n':
+            actionList.append(temp)
+    fwQuestionDic.writelines(questionList)
+    fwActionDic.writelines(actionList)
+    fwNoaction.writelines(no_action_question_list)
+    fwTrainQ.close()
+    fwTrainA.close()
+    fwTestQ.close()
+    fwTestA.close()
+    fwQuestionDic.close()
+    fwActionDic.close()
+    fwNoaction.close()
+    print ("Getting RL processDataset is done!")
+
 if __name__ == "__main__":
     print("start process webqsp dataset")
     # process_webqsp_RL()
-    getTrainingDatasetForPytorch_seq2seq_webqsp()
+    # getTrainingDatasetForPytorch_seq2seq_webqsp()
+    # getTrainingDatasetForRlWebQSP()
+    getShareVocabularyForWebQSP()

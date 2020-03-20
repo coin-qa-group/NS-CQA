@@ -24,9 +24,9 @@ log = logging.getLogger("train")
 
 TEACHER_PROB = 1.0
 
-TRAIN_QUESTION_PATH = '../data/webqsp_data/mask_even/infchain_1/PT_train.webqsp.infchain_1.question'
-TRAIN_ACTION_PATH = '../data/webqsp_data/mask_even/infchain_1/PT_train.webqsp.infchain_1.action'
-DIC_PATH = '../data/webqsp_data/share.question'
+TRAIN_QUESTION_PATH = '../data/webqsp_data/mask/PT_train.question'
+TRAIN_ACTION_PATH = '../data/webqsp_data/mask/PT_train.action'
+DIC_PATH = '../data/webqsp_data/share.webqsp.question'
 
 def run_test(test_data, net, end_token, device="cuda"):
     bleu_sum = 0.0
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
 
     # command line parameters
-    sys.argv = ['train_crossent_webqsp.py', '--cuda', '--n=crossent_even_1%_att=1', '--att=1', '--lstm=1']
+    sys.argv = ['train_crossent_webqsp.py', '--cuda', '--n=crossent_webqsp', '--att=1', '--lstm=1']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. "
