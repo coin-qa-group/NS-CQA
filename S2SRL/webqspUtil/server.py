@@ -306,7 +306,7 @@ if __name__ == '__main__':
     interpreter.freebase_kb = json.load(
         open('../../data/webqsp_data/webQSP_freebase_subgraph.json'))
     print("loading knowledge down, start the server")
-    app.run(host='127.0.0.1', port=5001, use_debugger=True)
+    app.run(host='127.0.0.1', port=5003, use_debugger=True)
     # app.run(host='10.201.34.3', port=5001, use_debugger=True)
 
     # # local server

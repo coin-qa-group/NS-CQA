@@ -84,15 +84,15 @@ def calc_True_Reward_webqsp(action_sequence, qa_info, adaptive_flag = False):
         return 0.0
 
 w_1 = 0.2
-def calc_01_reward_webqsp(target_value, gold_entities_set, type = "jaccard"):
+def calc_01_reward_webqsp(target_value, gold_entities_set, type = "f1"):
     true_reward = 0.0
     if len(gold_entities_set) == 0:
         if len(target_value) == 0:
             return 1.0
         else:
             return 0.0
+    intersec = set(target_value).intersection(set(gold_entities_set))
     if type == "jaccard":
-        intersec = set(target_value).intersection(set(gold_entities_set))
         union = set([])
         union.update(target_value)
         union.update(gold_entities_set)

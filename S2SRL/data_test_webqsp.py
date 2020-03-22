@@ -10,7 +10,7 @@ import torch
 
 log = logging.getLogger("data_test")
 
-DIC_PATH = '../data/webqsp_data/share.question'
+DIC_PATH = '../data/webqsp_data/share.webqsp.question'
 
 if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     # # command line parameters for final test
     # sys.argv = ['data_test.py', '-m=bleu_0.984_09.dat', '-p=final', '--n=rl_even']
     # command line parameters for final test (subset data)
-    sys.argv = ['data_test.py', '-m=pre_bleu_0.964_50.dat', '-p=pt', '--n=crossent_even', '--att=1', '--lstm=1']
+    sys.argv = ['data_test.py', '-m=pre_bleu_0.944_31.dat', '-p=pt', '--n=crossent_even', '--att=1', '--lstm=1']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True,
@@ -46,10 +46,10 @@ if __name__ == "__main__":
     # TEST_ACTION_PATH = '../data/webqsp_data/mask_test/' + str(args.pred).upper() + '_test.action'
     # log.info("Open: %s", '../data/webqsp_data/mask_test/' + str(args.pred).upper() + '_test.action')
 
-    TEST_QUESTION_PATH = '../data/webqsp_data/mask_even/infchain_1/' + 'PT_test.webqsp.infchain_1.question'
-    log.info("Open: %s", '../data/webqsp_data/mask_even/infchain_1/' + 'PT_test.webqsp.infchain_1.question')
-    TEST_ACTION_PATH = '../data/webqsp_data/mask_even/infchain_1/' + 'PT_test.webqsp.infchain_1.action'
-    log.info("Open: %s", '../data/webqsp_data/mask_even/infchain_1/' + 'PT_test.webqsp.infchain_1.action')
+    TEST_QUESTION_PATH = '../data/webqsp_data/mask/' + 'PT_test.question'
+    log.info("Open: %s", '../data/webqsp_data/mask/' + 'PT_test.question')
+    TEST_ACTION_PATH = '../data/webqsp_data/mask/' + 'PT_test.action'
+    log.info("Open: %s", '../data/webqsp_data/mask/' + 'PT_test.action')
 
     if args.pred == 'pt' or 'final' in args.pred:
         phrase_pairs, emb_dict = data.load_data_from_existing_data(TEST_QUESTION_PATH, TEST_ACTION_PATH, DIC_PATH)
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     net = model.PhraseModel(emb_size=model.EMBEDDING_DIM, dict_size=len(emb_dict), hid_size=model.HIDDEN_STATE_SIZE,
                             LSTM_FLAG=args.lstm, ATT_FLAG=args.att)
     net = net.cuda()
-    model_path = '../data/saves/webqsp/crossent_even_1%_att=1/' + str(args.name) + '/' + str(args.model)
+    model_path = '../data/saves/webqsp/test032201/crossent_webqsp/' + str(args.model)
     net.load_state_dict((torch.load(model_path)))
     end_token = emb_dict[data.END_TOKEN]
 

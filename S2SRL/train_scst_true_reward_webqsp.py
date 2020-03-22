@@ -60,7 +60,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/webqsp/crossent_webqsp/epoch_030_0.986_0.947.dat', '-n=rl03201645_att=1', '-s=5', '-a=0', '--att=1', '--lstm=1']
+    sys.argv = ['train_scst_true_reward_webqsp.py', '--cuda', '-l=../data/saves/webqsp/crossent_webqsp/epoch_030_0.986_0.947.dat', '-n=rl03201645_att=1', '-s=5', '-a=0', '--att=1', '--lstm=1']
 
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
@@ -185,8 +185,7 @@ if __name__ == "__main__":
                     # print (input_tokens)
                     # Get IDs of reference sequences' tokens corresponding to idx-th input sequence in batch.
                     qa_info = output_batch[idx]
-                    print("%s is training..." % (qa_info['qid']))
-                    # print (qa_info['qid'])
+                    # print("%s is training..." % (qa_info['qid']))
                     # # Get the (two-layer) hidden state of encoder of idx-th input sequence in batch.
                     item_enc = net.get_encoded_item(enc, idx)
                     # # 'r_argmax' is the list of out_logits list and 'actions' is the list of output tokens.
@@ -201,8 +200,8 @@ if __name__ == "__main__":
                     # If the last parameter is false, it means that the 0-1 reward is used to calculate the accuracy.
                     # Otherwise the adaptive reward is used.
                     argmax_reward = utils.calc_True_Reward_webqsp(action_tokens, qa_info, args.adaptive)
-                    print("action_tokens", action_tokens)
-                    print("qa_info", qa_info)
+                    # print("action_tokens", action_tokens)
+                    # print("qa_info", qa_info)
                     true_reward_argmax.append(argmax_reward)
 
                     # # In this case, the BLEU score is so high that it is not needed to train such case with RL.
@@ -271,7 +270,7 @@ if __name__ == "__main__":
                         net_advantages.extend([sample_reward - argmax_reward] * len(actions))
                         true_reward_sample.append(sample_reward)
                     dial_shown = True
-                    print("Epoch %d, Batch %d, Sample %d: %s is trained!" %(epoch, batch_count, idx, qa_info['qid']))
+                    # print("Epoch %d, Batch %d, Sample %d: %s is trained!" %(epoch, batch_count, idx, qa_info['qid']))
 
                 if not net_policies:
                     continue

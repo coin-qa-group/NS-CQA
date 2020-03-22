@@ -314,7 +314,14 @@ def load_RL_data_TR(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
         load_dict = json.load(load_f)
         for key, value in load_dict.items():
             length = len(str(value['input']).strip().split(' '))
-            if 'entity_mask' in value and 'relation_mask' in value and 'type_mask' in value and 'response_bools' in value and 'response_entities' in value and 'orig_response' in value and 'question' in value and length <= max_tokens:
+            if 'entity_mask' in value \
+                    and 'relation_mask' in value \
+                    and 'type_mask' in value \
+                    and 'response_bools' in value \
+                    and 'response_entities' in value \
+                    and 'orig_response' in value \
+                    and 'question' in value \
+                    and length <= max_tokens:
                 question_info = {'qid':key,'entity_mask': value['entity_mask'], 'relation_mask': value['relation_mask'],
                              'type_mask': value['type_mask'], 'response_bools': value['response_bools'],
                              'response_entities': value['response_entities'], 'orig_response': value['orig_response']}

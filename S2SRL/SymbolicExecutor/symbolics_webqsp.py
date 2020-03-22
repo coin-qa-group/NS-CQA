@@ -19,7 +19,7 @@ app = Flask(__name__)
 # Remote Server
 # post_url = "http://10.201.34.3:5002/post"
 # # local server
-post_url = "http://127.0.0.1:5001/post"
+post_url = "http://127.0.0.1:5003/post"
 
 
 class Symbolics_WebQSP():

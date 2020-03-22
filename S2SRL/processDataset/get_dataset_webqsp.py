@@ -4,8 +4,10 @@ import sys
 sys.path.insert(0, '../SymbolicExecutor/')
 from symbolics_webqsp import Symbolics_WebQSP
 from itertools import islice
+sys.path.insert(0, '../../S2SRL/')
+from libbots import data, model, utils
 
-b_print = False
+b_print = True
 LINE_SIZE = 100000
 special_counting_characters = {'-','|','&'}
 special_characters = {'(',')','-','|','&'}
@@ -35,7 +37,7 @@ class Qapair(object):
         }
 
 class WebQSP(object):
-    def __init__(self, id, question, action_sequence_list, entity, relation, type, entity_mask, relation_mask, type_mask, mask_action_sequence_list, answerlist, input_str):
+    def __init__(self, id, question, action_sequence_list, entity, relation, type, entity_mask, relation_mask, type_mask, mask_action_sequence_list, answerlist, input_str, response_entities, orig_response_str):
         self.id = id
         self.question = question
         self.action_sequence_list = action_sequence_list
@@ -48,8 +50,29 @@ class WebQSP(object):
         self.mask_action_sequence_list = mask_action_sequence_list
         self.answerlist = answerlist
         self.input_str = input_str
+        self.response_entities = response_entities
+        self.orig_response_str = orig_response_str
 
-    def obj_2_json(obj):
+    def obj_2_rljson(obj):
+        return {
+            obj.id: {
+                "question": obj.question,
+                "action_sequence_list": obj.action_sequence_list,
+                "entity": obj.entity,
+                "relation": obj.relation,
+                "type": obj.type,
+                "entity_mask": obj.entity_mask,
+                "relation_mask": obj.relation_mask,
+                "type_mask": obj.type_mask,
+                "answers": obj.answerlist,
+                "input": obj.input_str,
+                "response_entities": obj.response_entities,
+                "response_bools":[],
+                "orig_response": obj.orig_response_str
+            }
+        }
+
+    def obj_2_s2sjson(obj):
         return {
             obj.id: {
                 "question": obj.question,
@@ -62,168 +85,11 @@ class WebQSP(object):
                 "type_mask": obj.type_mask,
                 "mask_action_sequence_list": obj.mask_action_sequence_list,
                 "answers": obj.answerlist,
-                "input": obj.input_str
+                "input": obj.input_str,
+                "response_entities": obj.response_entities,
+                "orig_response_str": obj.orig_response_str
             }
         }
-
-    def get_webqsp_set_item(self, annotationPath, origPath):
-        setitem = {}
-        annotation_list = list()
-        orig_list = list()
-        question_dict = {}
-        with open(annotationPath, 'r', encoding="UTF-8") as infile:
-            count = 0
-            while True:
-                lines_gen = list(islice(infile, LINE_SIZE))
-                if not lines_gen:
-                    break
-                for line in lines_gen:
-                    annotation_list.append(line.strip())
-                count = count + 1
-                print(count)
-        with open(origPath, 'r', encoding="UTF-8") as infile:
-            count = 0
-            while True:
-                lines_gen = list(islice(infile, LINE_SIZE))
-                if not lines_gen:
-                    break
-                for line in lines_gen:
-                    orig_list.append(line.strip())
-                count = count + 1
-                print(count)
-        count = 0
-        # Each question is corresponding to one action sequence.
-        while count < len(annotation_list):
-            line_string = str(annotation_list[count]).strip()
-            if str(line_string).startswith('['):
-                count += 1
-            else:
-                string_list = str(line_string).split(' ')
-                if 'simple_' in str(annotationPath):
-                    ID_string = 'simple_' + string_list[0]
-                elif 'logical_' in str(annotationPath):
-                    ID_string = 'logical_' + string_list[0]
-                elif 'quantative_' in str(annotationPath):
-                    ID_string = 'quantative_' + string_list[0]
-                elif 'count_' in str(annotationPath) and 'compcount_' not in str(annotationPath):
-                    ID_string = 'count_' + string_list[0]
-                elif 'bool_' in str(annotationPath):
-                    ID_string = 'bool_' + string_list[0]
-                elif 'comp_' in str(annotationPath):
-                    ID_string = 'comp_' + string_list[0]
-                elif 'compcount_' in str(annotationPath):
-                    ID_string = 'compcount_' + string_list[0]
-                elif 'compcountappro_' in str(annotationPath):
-                    ID_string = 'compcountappro_' + string_list[0]
-                elif 'compappro_' in str(annotationPath):
-                    ID_string = 'compappro_' + string_list[0]
-                question_string = ' '.join(string_list[1:])
-                actionSequenceList = list()
-                count += 1
-                while count < len(annotation_list) and str(annotation_list[count]).strip().startswith('['):
-                    actionSequence = eval(str(annotation_list[count]).strip())
-                    actionSequenceList.append(actionSequence)
-                    count += 1
-                question_info = {}
-                # Original annotation information.
-                question_info.setdefault('question', question_string)
-                question_info.setdefault('action_sequence_list', actionSequenceList)
-                question_dict.setdefault(ID_string, question_info)
-
-        count = 0
-        while count < len(orig_list):
-            if 'simple_' in str(origPath):
-                ID_string = 'simple_' + str(orig_list[count]).strip()
-            elif 'logical_' in str(origPath):
-                ID_string = 'logical_' + str(orig_list[count]).strip()
-            elif 'quantative_' in str(origPath):
-                ID_string = 'quantative_' + str(orig_list[count]).strip()
-            elif 'count_' in str(origPath) and 'compcount_' not in str(origPath):
-                ID_string = 'count_' + str(orig_list[count]).strip()
-            elif 'bool_' in str(origPath):
-                ID_string = 'bool_' + str(orig_list[count]).strip()
-            elif 'comp_' in str(origPath):
-                ID_string = 'comp_' + str(orig_list[count]).strip()
-            elif 'compcount_' in str(origPath):
-                ID_string = 'compcount_' + str(orig_list[count]).strip()
-            elif 'compcountappro_' in str(origPath):
-                ID_string = 'compcountappro_' + str(orig_list[count]).strip()
-            elif 'compappro_' in str(annotationPath):
-                ID_string = 'compappro_' + str(orig_list[count]).strip()
-            if ID_string in question_dict:
-                question_info_new = question_dict.get(ID_string)
-                entity_list = list()
-                relation_list = list()
-                type_list = list()
-                if count + 2 < len(orig_list) and str(orig_list[count + 2]).startswith('context_entities'):
-                    entity_string = str(orig_list[count + 2]).strip()
-                    entity_string = entity_string.replace('context_entities:', '').strip()
-                    if len(entity_string) > 0:
-                        entity_list = entity_string.split(',')
-                if count + 3 < len(orig_list) and str(orig_list[count + 3]).startswith('context_relations'):
-                    relation_string = str(orig_list[count + 3]).strip()
-                    relation_string = relation_string.replace('context_relations:', '').strip()
-                    if len(relation_string) > 0:
-                        relation_list = relation_string.split(',')
-                if count + 4 < len(orig_list) and str(orig_list[count + 4]).startswith('context_types'):
-                    type_string = str(orig_list[count + 4]).strip()
-                    type_string = type_string.replace('context_types:', '').strip()
-                    if len(type_string) > 0:
-                        type_list = type_string.split(',')
-                question_info_new.setdefault('entity', entity_list)
-                question_info_new.setdefault('relation', relation_list)
-                question_info_new.setdefault('type', type_list)
-                entity_maskID = {}
-                if len(entity_list) != 0:
-                    for i, entity in enumerate(entity_list):
-                        entity_maskID.setdefault(entity, 'ENTITY' + str(i + 1))
-                question_info_new.setdefault('entity_mask', entity_maskID)
-                relation_maskID = {}
-                if len(relation_list) != 0:
-                    relation_index = 0
-                    for relation in relation_list:
-                        relation = relation.replace('-', '')
-                        if relation not in relation_maskID:
-                            relation_index += 1
-                            relation_maskID.setdefault(relation, 'RELATION' + str(relation_index))
-                question_info_new.setdefault('relation_mask', relation_maskID)
-                type_maskID = {}
-                if len(type_list) != 0:
-                    for i, type in enumerate(type_list):
-                        type_maskID.setdefault(type, 'TYPE' + str(i + 1))
-                question_info_new.setdefault('type_mask', type_maskID)
-                actions = question_info_new.get('action_sequence_list')
-                MASK_actions = list()
-                if len(actions) > 0:
-                    for action in actions:
-                        MASK_action = list()
-                        for dict in action:
-                            MASK_dict = {}
-                            for temp_key, temp_value in dict.items():
-                                MASK_key = temp_key
-                                MASK_value = list()
-                                for token in temp_value:
-                                    if '-' in token and token != '-':
-                                        token_new = token.replace('-', '')
-                                        if token_new in relation_maskID:
-                                            MASK_value.append('-' + str(relation_maskID.get(token_new)))
-                                    else:
-                                        if token in entity_maskID:
-                                            MASK_value.append(entity_maskID.get(token))
-                                        elif token in relation_maskID:
-                                            MASK_value.append(relation_maskID.get(token))
-                                        elif token in type_maskID:
-                                            MASK_value.append(type_maskID.get(token))
-                                        elif token in special_counting_characters:
-                                            MASK_value.append(token)
-                                MASK_dict.setdefault(MASK_key, MASK_value)
-                            MASK_action.append(MASK_dict)
-                        MASK_actions.append(MASK_action)
-                question_info_new.setdefault('mask_action_sequence_list', MASK_actions)
-                question_dict.setdefault(ID_string, question_info_new)
-            count += 5
-        return question_dict
-        return setitem
 
 # parse sparql in dataset to action sequence
 def processSparql(sparql_str, id="empty"):
@@ -476,6 +342,7 @@ def calc_01_reward(answer, true_answer):
 w_1 = 0.2
 def calc_01_reward_type(res_answer, true_answer, type = "f1"):
     true_reward = 0.0
+    prec = 0.0
     res_answer = set(res_answer)
     true_answer = set(true_answer)
     intersec = set(res_answer).intersection(set(true_answer))
@@ -498,6 +365,12 @@ def calc_01_reward_type(res_answer, true_answer, type = "f1"):
             true_reward = 0.0
         else:
             true_reward = (2.0 * prec * rec) / (prec + rec)
+    elif type == "precision":
+        if len(res_answer) == 0:
+            prec = 0.0
+        else:
+            prec = float(len(intersec)) / float(len(res_answer))
+            true_reward = prec
     return true_reward
 
 
@@ -511,13 +384,18 @@ def process_webqsp_RL():
     no_gold_answer = []
     AnswerType_Value_idlist = []
     to_add_list = []
+    to_skip_list = []
     result_list = []
     no_x_list = []
     json_errorlist = []
     true_count = 0
     errorlist = []
 
-    final_data_RL = {}
+    final_data_RL_train = {}
+    final_data_RL_test = {}
+    final_data_seq2seq_train = {}
+    final_data_seq2seq_test = {}
+    final_data_seq2seq = {}
 
     with open("WebQSPList_Correct.json", "r", encoding='UTF-8') as correct_list:
         WebQSPList_Correct = json.load(correct_list)
@@ -533,7 +411,7 @@ def process_webqsp_RL():
     train_questions = load_dictTrain["Questions"]
     test_questions = load_dictTest["Questions"]
     all_questions = train_questions + test_questions
-    small_questions = train_questions[0:9] + test_questions[0:9]
+    small_questions = train_questions[0:50] + test_questions[0:50]
 
     process_questions = test_questions
     # total rewards
@@ -548,10 +426,12 @@ def process_webqsp_RL():
         question = parse_q["ProcessedQuestion"]
         for q in parse_q["Parses"]:
             id = q["ParseId"]
-            if id not in WebQSPList_Correct:
-                continue
+            # if id not in WebQSPList_Correct:
+            #     continue
             # if id not in to_test_by_hand_list:
             #     continue
+            if id in to_handle_list:
+                continue
             if b_print:
                 print(id)
             all_count += 1
@@ -563,9 +443,13 @@ def process_webqsp_RL():
                 no_gold_answer.append(id)
             else:
                 Answers = []
+                orig_response_list = []
                 for an in answerList:
                     Answers.append(an['AnswerArgument'])
+                    orig_response_list.append(an['AnswerArgument'])
                 answer_type = answerList[0]['AnswerType']
+                response_entities = Answers
+                orig_response_str = ', '.join(orig_response_list)
                 if answer_type == "Value":
                     AnswerType_Value_idlist.append(id)
                     sr_list = processSparql_value(sparql)
@@ -575,7 +459,7 @@ def process_webqsp_RL():
                 else:
                     # assert answer_type == "Entity"
                     # continue
-                    # if id == "WebQTrn-193.P0" or id == "WebQTrn-194.P0":  # test one
+                    # if id == "WebQTrn-193.P0":  # test one
                     if True:  # test all
                         # test seq
                         true_answer = Answers
@@ -595,10 +479,10 @@ def process_webqsp_RL():
                                 reward = calc_01_reward_type(res_answer, true_answer, "f1")
                                 if b_print:
                                     print(id, reward)
-                                result_list.append({id: [seq, reward]})
                                 if reward != 1.0:
-                                    result_list.append({id: list(res_answer)})
-                                    result_list.append({id: list(true_answer)})
+                                    result_list.append({id: [seq, reward]})
+                                    result_list.append({id + "res_answer": list(res_answer)})
+                                    result_list.append({id + "true_answer": list(true_answer)})
 
                                 reward_jaccard = calc_01_reward_type(res_answer, true_answer, "jaccard")
                                 reward_recall = calc_01_reward_type(res_answer, true_answer, "recall")
@@ -695,11 +579,17 @@ def process_webqsp_RL():
                                         # questionSet = questionSet.union(question_tokens_set)
                                         correct_item = WebQSP(id, question, seq, entity, relation, type, entity_mask,
                                                               relation_mask, type_mask, mask_action_sequence_list,
-                                                              answerList, question_string)
+                                                              answerList, question_string, response_entities, orig_response_str)
                                     # print(question)
                                     # print(answer)
                                     WebQSPList_Correct.append(id)
-                                    final_data_RL.update(correct_item.obj_2_json())
+                                    if id.startswith('WebQTrn'):
+                                        final_data_seq2seq_train.update(correct_item.obj_2_s2sjson())
+                                        final_data_RL_train.update(correct_item.obj_2_rljson())
+                                    else:
+                                        final_data_seq2seq_test.update(correct_item.obj_2_s2sjson())
+                                        final_data_RL_test.update(correct_item.obj_2_rljson())
+                                    final_data_seq2seq.update(correct_item.obj_2_s2sjson())
                                 else:
                                     if b_print:
                                         print('incorrect!', reward)
@@ -768,23 +658,46 @@ def process_webqsp_RL():
     fileObject.close()
 
     # final_data_RL
-    jsondata = json.dumps(final_data_RL, indent=1)
-    fileObject = open('webqsp_test.json', 'w')
+    jsondata = json.dumps(final_data_RL_train, indent=1)
+    fileObject = open('../../data/webqsp_data/test/final_webqsp_train_RL.json', 'w')
+    fileObject.write(jsondata)
+    fileObject.close()
+
+    jsondata = json.dumps(final_data_RL_test, indent=1)
+    fileObject = open('../../data/webqsp_data/test/final_webqsp_test_RL.json', 'w')
+    fileObject.write(jsondata)
+    fileObject.close()
+
+    # final_data_seq2seq
+    jsondata = json.dumps(final_data_seq2seq_train, indent=1)
+    fileObject = open('../../data/webqsp_data/test/final_data_seq2seq_train.json', 'w')
+    fileObject.write(jsondata)
+    fileObject.close()
+
+    # final_data_seq2seq
+    jsondata = json.dumps(final_data_seq2seq_test, indent=1)
+    fileObject = open('../../data/webqsp_data/test/final_data_seq2seq_test.json', 'w')
+    fileObject.write(jsondata)
+    fileObject.close()
+
+    # final_data_
+    jsondata = json.dumps(final_data_seq2seq, indent=1)
+    fileObject = open('../../data/webqsp_data/test/final_data_seq2seq.json', 'w')
     fileObject.write(jsondata)
     fileObject.close()
 
 
 # Get training data for sequence2sequence.
 def getTrainingDatasetForPytorch_seq2seq_webqsp():
-    fwTrainQ = open('../../data/webqsp_data/mask/PT_train.question', 'w', encoding="UTF-8")
-    fwTrainA = open('../../data/webqsp_data/mask/PT_train.action', 'w', encoding="UTF-8")
-    fwTestQ = open('../../data/webqsp_data/mask/PT_test.question', 'w', encoding="UTF-8")
-    fwTestA = open('../../data/webqsp_data/mask/PT_test.action', 'w', encoding="UTF-8")
-    fwQuestionDic = open('../../data/webqsp_data/mask/dic_py.question', 'w', encoding="UTF-8")
-    fwActionDic = open('../../data/webqsp_data/mask/dic_py.action', 'w', encoding="UTF-8")
+    fwTrainQ = open('../../data/webqsp_data/test/mask/PT_train.question', 'w', encoding="UTF-8")
+    fwTrainA = open('../../data/webqsp_data/test/mask/PT_train.action', 'w', encoding="UTF-8")
+    fwTestQ = open('../../data/webqsp_data/test/mask/PT_test.question', 'w', encoding="UTF-8")
+    fwTestA = open('../../data/webqsp_data/test/mask/PT_test.action', 'w', encoding="UTF-8")
+    fwQuestionDic = open('../../data/webqsp_data/test/mask/dic_py.question', 'w', encoding="UTF-8")
+    fwActionDic = open('../../data/webqsp_data/test/mask/dic_py.action', 'w', encoding="UTF-8")
     questionSet = set()
     actionSet = set()
-    with open("../../data/webqsp_data/WEBQSP_ANNOTATIONS_full.json", 'r', encoding="UTF-8") as load_f:
+    with open("../../data/webqsp_data/test/final_data_seq2seq.json", 'r', encoding="UTF-8") as load_f:
         count = 1
         train_action_string_list, test_action_string_list, train_question_string_list, test_question_string_list = list(), list(), list(), list()
         dict_list = list()
@@ -886,9 +799,9 @@ def getShareVocabularyForWebQSP():
     questionVocab = set()
     actionVocab = set()
     actionVocab_list = list()
-    with open('../../data/webqsp_data/mask/dic_py.question', 'r', encoding="UTF-8") as infile1, \
-            open('../../data/webqsp_data/mask/dic_rl.question', 'r', encoding="UTF-8") as infile2, \
-            open('../../data/webqsp_data/mask/dic_rl_tr.question', 'r', encoding="UTF-8") as infile3:
+    with open('../../data/webqsp_data/test/mask/dic_py.question', 'r', encoding="UTF-8") as infile1, \
+            open('../../data/webqsp_data/test/mask/dic_rl.question', 'r', encoding="UTF-8") as infile2, \
+            open('../../data/webqsp_data/test/mask/dic_rl_tr.question', 'r', encoding="UTF-8") as infile3:
         count = 0
         while True:
             lines_gen = list(islice(infile1, LINE_SIZE))
@@ -919,7 +832,7 @@ def getShareVocabularyForWebQSP():
                 questionVocab.add(token)
                 count = count + 1
             print(count)
-    with open('../../data/webqsp_data/mask/dic_py.action', 'r', encoding="UTF-8") as infile1, open('../../data/webqsp_data/mask/dic_rl.action', 'r', encoding="UTF-8") as infile2:
+    with open('../../data/webqsp_data/test/mask/dic_py.action', 'r', encoding="UTF-8") as infile1, open('../../data/webqsp_data/test/mask/dic_rl.action', 'r', encoding="UTF-8") as infile2:
         count = 0
         while True:
             lines_gen = list(islice(infile1, LINE_SIZE))
@@ -954,7 +867,7 @@ def getShareVocabularyForWebQSP():
     share_vocab_list = actionVocab_list + questionVocab_list
     for i in range(len(share_vocab_list)):
         share_vocab_list[i] = share_vocab_list[i] + '\n'
-    fw = open('../../data/webqsp_data/share.webqsp.question', 'w', encoding="UTF-8")
+    fw = open('../../data/webqsp_data/test/share.webqsp.question', 'w', encoding="UTF-8")
     fw.writelines(share_vocab_list)
     fw.close()
     print("Writing SHARE VOCAB is done!")
@@ -962,17 +875,17 @@ def getShareVocabularyForWebQSP():
 
 # Get training data for REINFORCE (using annotation instead of denotation as reward).
 def getTrainingDatasetForRlWebQSP():
-    fwTrainQ = open('../../data/webqsp_data/mask/RL_train.question', 'w', encoding="UTF-8")
-    fwTrainA = open('../../data/webqsp_data/mask/RL_train.action', 'w', encoding="UTF-8")
-    fwTestQ = open('../../data/webqsp_data/mask/RL_test.question', 'w', encoding="UTF-8")
-    fwTestA = open('../../data/webqsp_data/mask/RL_test.action', 'w', encoding="UTF-8")
-    fwQuestionDic = open('../../data/webqsp_data/mask/dic_rl.question', 'w', encoding="UTF-8")
-    fwActionDic = open('../../data/webqsp_data/mask/dic_rl.action', 'w', encoding="UTF-8")
-    fwNoaction = open('../../data/webqsp_data/mask/no_action_question.txt', 'w', encoding="UTF-8")
+    fwTrainQ = open('../../data/webqsp_data/test/mask/RL_train.question', 'w', encoding="UTF-8")
+    fwTrainA = open('../../data/webqsp_data/test/mask/RL_train.action', 'w', encoding="UTF-8")
+    fwTestQ = open('../../data/webqsp_data/test/mask/RL_test.question', 'w', encoding="UTF-8")
+    fwTestA = open('../../data/webqsp_data/test/mask/RL_test.action', 'w', encoding="UTF-8")
+    fwQuestionDic = open('../../data/webqsp_data/test/mask/dic_rl.question', 'w', encoding="UTF-8")
+    fwActionDic = open('../../data/webqsp_data/test/mask/dic_rl.action', 'w', encoding="UTF-8")
+    fwNoaction = open('../../data/webqsp_data/test/mask/no_action_question.txt', 'w', encoding="UTF-8")
     no_action_question_list = list()
     questionSet = set()
     actionSet = set()
-    with open("../../data/webqsp_data/WEBQSP_ANNOTATIONS_full.json", 'r', encoding="UTF-8") as load_f:
+    with open("../../data/webqsp_data/test/final_data_seq2seq.json", 'r', encoding="UTF-8") as load_f:
         count = 1
         train_action_string_list, test_action_string_list, train_question_string_list, test_question_string_list = list(), list(), list(), list()
         dict_list = list()
@@ -1081,9 +994,18 @@ def getTrainingDatasetForRlWebQSP():
     fwNoaction.close()
     print ("Getting RL processDataset is done!")
 
+def testInputData():
+    # # List of (question, {question information and answer}) pairs, the training pairs are in format of 1:1.
+    MAX_TOKENS = 40
+    DIC_PATH = '../../data/webqsp_data/test/share.webqsp.question'
+    TRAIN_QUESTION_ANSWER_PATH = '../../data/webqsp_data/test/final_webqsp_train_RL.json'
+    phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS)
+    print("Obtained {0} phrase pairs with {1} uniq words from {2}.".format(len(phrase_pairs), len(emb_dict), TRAIN_QUESTION_ANSWER_PATH))
+
 if __name__ == "__main__":
     print("start process webqsp dataset")
-    process_webqsp_RL()
+    process_webqsp_RL()   # dataset to mask
     # getTrainingDatasetForPytorch_seq2seq_webqsp()
     # getTrainingDatasetForRlWebQSP()
-    # getShareVocabularyForWebQSP()
+    # getShareVocabularyForWebQSP() # share.question
+    # testInputData()

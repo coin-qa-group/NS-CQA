@@ -10,8 +10,8 @@ import torch
 
 log = logging.getLogger("data_test")
 
-TEST_QUESTION_ANSWER_PATH = '../data/webqsp_data/RL_mask_even/webqsp_question/RL_test_TR_sub_webqsp_infchain_1.json'
-DIC_PATH = '../data/webqsp_data/share.question'
+TEST_QUESTION_ANSWER_PATH = '../data/webqsp_data/final_webqsp_test_RL.json'
+DIC_PATH = '../data/webqsp_data/share.webqsp.question'
 MAX_TOKENS = 40
 
 if __name__ == "__main__":
@@ -20,7 +20,7 @@ if __name__ == "__main__":
     # # command line parameters for final test
     # sys.argv = ['data_test.py', '-m=bleu_0.984_09.dat', '-p=final', '--n=rl_even']
     # command line parameters for final test (subset data)
-    sys.argv = ['data_test_RL_webqsp.py', '-m=truereward_0.800_00.dat', '-p=rl', '--n=crossent_even', '--att=1', '--lstm=1']
+    sys.argv = ['data_test_RL_webqsp.py', '-m=epoch_007_0.941_0.000.dat', '-p=rl', '--n=crossent_even', '--att=1', '--lstm=1']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True,
@@ -67,7 +67,7 @@ if __name__ == "__main__":
                             LSTM_FLAG=args.lstm, ATT_FLAG=args.att)
     net = net.cuda()
     # model_path = '../data/saves/rl_even_adaptive_1%/' + str(args.name) + '/' + str(args.model)
-    model_path = '../data/saves/webqsp/crossent_even_1%_att=1/' + str(args.name) + '/' + str(args.model)
+    model_path = '../data/saves/webqsp/crossent_even/' + str(args.name) + '/' + str(args.model)
     net.load_state_dict((torch.load(model_path)))
     end_token = emb_dict[data.END_TOKEN]
 
