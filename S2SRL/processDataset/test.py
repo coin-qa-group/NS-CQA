@@ -247,11 +247,40 @@ def dict_test():
         count += 1
     return q_ints
 
+def testChunk():
+    a = torch.ones([4, 8])
+    b = torch.zeros([4, 8])
+    c = torch.cat([a, b], 0)  # 第0个维度stack
+    d1, d2, d3, d4 = torch.chunk(c, 4, 1)
+    print("1--------------------------------")
+    print('a.size: ', end='')
+    print(a.size())
+    print(a)
+    print('b.size: ', end='')
+    print(b.size())
+    print(b)
+    print('c.size: ', end='')
+    print(c.size())
+    print(c)
+    print('d1.size: ', end='')
+    print(d1.size())
+    print(d1)
+    print('d2.size: ', end='')
+    print(d2.size())
+    print(d2)
+    print('d3.size: ', end='')
+    print(d3.size())
+    print(d3)
+    print('d4.size: ', end='')
+    print(d4.size())
+    print(d4)
+
 if __name__ == "__main__":
     # test()
     # test1()
     # test_digits()
-    print(dict_test())
+    # print(dict_test())
+    testChunk()
 
 
 

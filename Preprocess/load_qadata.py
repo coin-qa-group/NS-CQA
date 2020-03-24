@@ -192,14 +192,16 @@ def print_qa(qa,root,fname):
     print (f, "CODE:\n")
     print (f, "----------------------------")
 
-def get_quantitative_trainingset():
+def get_trainingset_for_annotation():
     root = "../data/demoqa2/"
     qa_set = load_qadata("../data/official_downloaded_data/10k/train_10k")
     qa_map = getQA_by_state_py3(qa_set)
-    for qa in qa_map['Quantitative Reasoning (Count) (All)\n']:
-        print_qa_py3(qa, root, 'train_count_all')
-    for qa in qa_map['Quantitative Reasoning (All)\n']:
-        print_qa_py3(qa, root, 'train_quanti_all')
+    # for qa in qa_map['Quantitative Reasoning (Count) (All)\n']:
+    #     print_qa_py3(qa, root, 'train_count_all')
+    # for qa in qa_map['Quantitative Reasoning (All)\n']:
+    #     print_qa_py3(qa, root, 'train_quanti_all')
+    for qa in qa_map['Verification (Boolean) (All)\n']:
+        print_qa_py3(qa, root, 'train_bool_all')
 
 # Get question and context_ints info for training dataset.
 def get_context_ints_trainingset(root, path):
@@ -216,16 +218,16 @@ def get_context_ints_trainingset(root, path):
 
 
 if __name__ == "__main__":
-    # get_quantitative_trainingset()
-    root = "../data/demoqa2/"
+    get_trainingset_for_annotation()
+    # root = "../data/demoqa2/"
     # path = "../data/official_downloaded_data/10k/train_10k"
     # get_context_ints_trainingset(root, path)
     #
     # path = "../data/official_downloaded_data/944k/train_944k"
     # get_context_ints_trainingset(root, path)
 
-    path = "../data/official_downloaded_data/156k_testfull"
-    get_context_ints_trainingset(root, path)
+    # path = "../data/official_downloaded_data/156k_testfull"
+    # get_context_ints_trainingset(root, path)
 
     '''
     qa_set = load_qadata("/data/zjy/valid_full")

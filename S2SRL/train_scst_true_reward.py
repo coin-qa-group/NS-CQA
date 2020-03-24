@@ -293,6 +293,8 @@ if __name__ == "__main__":
                 # For the optimizer is Adam (Adaptive Moment Estimation) which is a optimizer used for gradient descent.
                 # Therefore, to maximize ▽J (log_prob_actions_v) is to minimize -▽J.
                 # .mean() is to calculate Monte Carlo sampling.
+                # todo: sum or mean? The actions for one question should be summed up first,
+                #  then average each question's summed value.
                 loss_policy_v = -log_prob_actions_v.mean()
                 loss_policy_v = loss_policy_v.cuda()
 

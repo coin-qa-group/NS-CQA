@@ -111,8 +111,9 @@ if __name__ == "__main__":
     # test_file("../../data/demoqa2/", fname)
     # fname = "quant_atleast_multi_et.txt"
     # test_file("../../data/demoqa2/", fname)
-    fname = "quant_atleast_single_et.txt"
+    # fname = "train_bool_all.txt"
+    # test_file("../../data/demoqa2/", fname)
+    # fname = "train_quanti_all.txt"
+    # test_file("../../data/demoqa2/", fname)
+    fname = "train_count_all.txt"
     test_file("../../data/demoqa2/", fname)
-
-
-

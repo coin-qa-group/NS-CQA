@@ -201,11 +201,10 @@ if __name__ == "__main__":
     # getHandwrittenAnnotations('boolean', '../../data/demoqa2/train_bool_all.txt')
     # getHandwrittenAnnotations('quantitative_count_hand', '../../data/demoqa2/train_count_all.txt')
     # getHandwrittenAnnotations('quantitative_hand', '../../data/demoqa2/train_quanti_all.txt')
-    # id_question_action_infos = combineAnnotations('../../data/annotation_logs/quantative_auto.log',
-    #                                               '../../data/annotation_logs/quantitative_hand_auto.log',
-    #                                               '../../data/annotation_logs/quantative_orig.log')
-    # write_to_log(id_question_action_infos, 'quantitative_combine')
-    id_question_action_infos = combineAnnotations('../../data/annotation_logs/count_auto.log',
-                                                  '../../data/annotation_logs/quantitative_count_hand_auto.log',
-                                                  '../../data/annotation_logs/count_orig.log')
-    write_to_log(id_question_action_infos, 'count_combine')
+    id_question_action_infos = combineAnnotations(
+        '../../data/annotation_logs/quantative_auto.log', '../../data/annotation_logs/quantitative_hand_auto.log', '../../data/annotation_logs/quantative_orig.log')
+    write_to_log(id_question_action_infos, 'quantitative_combine')
+    # id_question_action_infos = combineAnnotations('../../data/annotation_logs/count_auto.log',
+    #                                               '../../data/annotation_logs/quantitative_count_hand_auto.log',
+    #                                               '../../data/annotation_logs/count_orig.log')
+    # write_to_log(id_question_action_infos, 'count_combine')

@@ -329,9 +329,14 @@ def getAllQuestionsAndActions(withint):
     question_dicts = dict(question_dicts,
                           **(getQuestionsAndActions('../../data/annotation_logs/count_combine_auto.log',
                                                     '../../data/annotation_logs/count_orig.log', withint)))
+    # Annotated test boolean questions.
     question_dicts = dict(question_dicts,
                           **(getQuestionsAndActions('../../data/annotation_logs/bool_auto.log',
                                                     '../../data/annotation_logs/bool_orig.log', withint)))
+    # Annotated training boolean questions.
+    question_dicts = dict(question_dicts,
+                          **(getQuestionsAndActions('../../data/annotation_logs/boolean_auto.log',
+                                                    '../../data/annotation_logs/boolean_orig.log', withint)))
     question_dicts = dict(question_dicts,
                           **(getQuestionsAndActions('../../data/annotation_logs/comp_auto.log',
                                                     '../../data/annotation_logs/comp_orig.log', withint)))
@@ -421,6 +426,8 @@ def getQuestionsAndActions(annotationPath, origPath, withint):
                 ID_string = 'count_' + string_list[0]
             elif 'bool_' in str(annotationPath):
                 ID_string = 'bool_' + string_list[0]
+            elif 'boolean_' in str(annotationPath):
+                ID_string = 'boolean_' + string_list[0]
             elif 'comp_' in str(annotationPath):
                 ID_string = 'comp_' + string_list[0]
             elif 'compcount_' in str(annotationPath):
@@ -458,6 +465,8 @@ def getQuestionsAndActions(annotationPath, origPath, withint):
             ID_string = 'count_' + str(orig_list[count]).strip()
         elif 'bool_' in str(origPath):
             ID_string = 'bool_' + str(orig_list[count]).strip()
+        elif 'boolean_' in str(origPath):
+            ID_string = 'boolean_' + str(orig_list[count]).strip()
         elif 'comp_' in str(origPath):
             ID_string = 'comp_' + str(orig_list[count]).strip()
         elif 'compcount_' in str(origPath):
@@ -611,9 +620,10 @@ def getTrainingDatasetForPytorch(withint):
                     for temp_key, temp_value in dict.items():
                         action_string += temp_key + ' ( '
                         for token in temp_value:
+                            token = str(token)
                             if '-' in token:
                                 token = '- ' + token.replace('-','')
-                            action_string += str(token) + ' '
+                            action_string += token + ' '
                         action_string += ') '
                 question_string = '<E> '
                 entities = value['entity_mask']
@@ -746,9 +756,10 @@ def getTrainingDatasetForRl(withint):
                         for temp_key, temp_value in dict.items():
                             action_string += temp_key + ' ( '
                             for token in temp_value:
+                                token = str(token)
                                 if '-' in token:
                                     token = '- ' + token.replace('-','')
-                                action_string += str(token) + ' '
+                                action_string += token + ' '
                             action_string += ') '
                     action_string = action_string.strip() + '\n'
                     action_string_list.append(action_string)
@@ -1078,13 +1089,13 @@ if __name__ == "__main__":
     # The annotations is mangled, so a new file is created from the initial annotation.json file.
     # getNewAnnotationsForLogical()
     # If 'withint' is 'True', the int info is combined in the input sequence, otherwise not.
-    getAllQuestionsAndActions(withint=True)
+    # getAllQuestionsAndActions(withint=True)
     getTrainingDatasetForPytorch(withint=True)
-    getTrainingDatasetForRl(withint=True)
-    rl_truereward_training_sets_for_10k(withint=True)
-    rl_truereward_training_sets_for_944k(withint=True)
-    get_vocabulary_for_10k(withint=True)
-    get_vocabulary_for_944k(withint=True)
+    # getTrainingDatasetForRl(withint=False)
+    # rl_truereward_training_sets_for_10k(withint=True)
+    # rl_truereward_training_sets_for_944k(withint=True)
+    # get_vocabulary_for_10k(withint=False)
+    # get_vocabulary_for_944k(withint=False)
     # getShareVocabularyForWebQSP()
 
 
