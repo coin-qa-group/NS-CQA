@@ -83,6 +83,8 @@ def getTrainingDatasetForPytorch(percentage, withint):
                     count_dict['count_'] = count_dict['count_'] + 1
                 elif 'bool_' in key and count_dict['bool_'] < CATEGORY_SIZE:
                     count_dict['bool_'] = count_dict['bool_'] + 1
+                elif 'boolean_' in key and count_dict['bool_'] < CATEGORY_SIZE:
+                    count_dict['bool_'] = count_dict['bool_'] + 1
                 elif 'comp_' in key and count_dict['comp_'] < COMP_SIZE:
                     count_dict['comp_'] = count_dict['comp_'] + 1
                 elif 'compcount_' in key and count_dict['compcount_'] < COMP_COUNT_SIZE:
@@ -223,6 +225,8 @@ def getTrainingDatasetForRl(percentage, withint):
                 elif 'count_' in key and 'compcount_' not in key and count_dict['count_'] < CATEGORY_SIZE:
                     count_dict['count_'] = count_dict['count_'] + 1
                 elif 'bool_' in key and count_dict['bool_'] < CATEGORY_SIZE:
+                    count_dict['bool_'] = count_dict['bool_'] + 1
+                elif 'boolean_' in key and count_dict['bool_'] < CATEGORY_SIZE:
                     count_dict['bool_'] = count_dict['bool_'] + 1
                 elif 'comp_' in key and count_dict['comp_'] < COMP_SIZE:
                     count_dict['comp_'] = count_dict['comp_'] + 1
@@ -416,6 +420,6 @@ if __name__ == "__main__":
     # percentage represents how much samples (0.2% ~ 1.2%) are drawn from the whole training dataset.
     percentage = '1.0%'
     size = 296
-    # getTrainingDatasetForPytorch(percentage, withint=True)
+    getTrainingDatasetForPytorch(percentage, withint=True)
     # getTrainingDatasetForRl(percentage, withint=True)
-    getTrainingDatasetForRlWithTrueReward(percentage, size, withint=True)
+    # getTrainingDatasetForRlWithTrueReward(percentage, size, withint=True)

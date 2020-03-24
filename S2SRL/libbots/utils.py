@@ -14,13 +14,14 @@ def calc_bleu_many(cand_seq, ref_sequences):
     return bleu_score.sentence_bleu(ref_sequences, cand_seq,
                                     smoothing_function=sf.method1,
                                     weights=(0.5, 0.5))
-
 def calc_True_Reward(action_sequence, qa_info, adaptive_flag = False):
     entity_mask = qa_info['entity_mask'] if 'entity_mask' in qa_info.keys() else {}
     relation_mask = qa_info["relation_mask"] if 'relation_mask' in qa_info.keys() else {}
     type_mask = qa_info['type_mask'] if 'type_mask' in qa_info.keys() else {}
+    # todo test
+    int_mask = qa_info['int_mask'] if 'int_mask' in qa_info.keys() else {}
     # Update(add) elements in dict.
-    masking_elements = {**entity_mask, **relation_mask, **type_mask}
+    masking_elements = {**entity_mask, **relation_mask, **type_mask, **int_mask}
     new_action = list()
     # Default separator of split() method is any whitespace.
     for act in action_sequence:

@@ -1233,6 +1233,8 @@ class MetaLearner(object):
         log_prob_actions_v = log_prob_v * adv_v
         log_prob_actions_v = log_prob_actions_v.cuda()
 
+        # todo: sum or mean? The actions for one question should be summed up first,
+        #  then average each question's summed value.
         loss_policy_v = -log_prob_actions_v.mean()
         loss_policy_v = loss_policy_v.cuda()
 

@@ -142,6 +142,7 @@ class ReparamModule(nn.Module):
         # According to the value recorded in the self._param_numels and self._param_shapes
         # to split the flat_param into parameter matrices tuple.
         # torch.split(tensor, split_size_or_sections, dim=0): Splits the tensor into chunk along certain dimension.
+        # t.view(s): range shape of elements in t based on s from _param_shapes.
         ps = (t.view(s) for (t, s) in zip(flat_param.split(self._param_numels), self._param_shapes))
         # Insert the weights and biases back into the self._param_infos.
         # note: what's the difference between deleted attributes and added attributes?
