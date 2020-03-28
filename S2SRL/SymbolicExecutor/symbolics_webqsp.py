@@ -123,9 +123,9 @@ class Symbolics_WebQSP():
                     finally:
                         self.print_answer()
                 # A9: Union(e，r，t)
-                elif ("A8" in symbolic):
+                elif ("A9" in symbolic):
                     try:
-                        self.answer = self.union(e, r, t)
+                        self.answer.update(self.union(e, r, t))
                     except:
                         print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -357,34 +357,22 @@ class Symbolics_WebQSP():
 
     # A9
     def union(self, e, r, t):
-        # print("A8:", e, r, t)
-        if e == "": return {}
-        if not e.startswith("Q"): return {}
-        answer_dict = self.answer
-        if type(answer_dict) == bool:
-            return False
-        elif type(answer_dict) != dict:
+        # print("A9:", e, r, t)
+        intermediate_result = {}
+        if e == "" or t == "":
             return {}
-        try:
-            if e in answer_dict and answer_dict[e] != None:
-                temp_dict = self.select(e, r, t)
-                if e in temp_dict:
-                    answer_dict[e] = set(answer_dict[e]) | set(temp_dict[e])
-            else:
-                answer_dict.update(self.select(e, r, t))
-        except:
-            print("ERROR for command: union(%s,%s,%s)" % (e, r, t))
-        finally:
-            # 进行 union 操作
-            # todo 这里前面都和select部分一样 所以还是应该拆开？ union单独做 好处是union可以不止合并两个 字典里的都可以合并
-            union_key = "|"
-            union_value = set([])
-            for k, v in answer_dict.items():
-                if v == None: v = []
-                union_value = union_value | set(v)
-            answer_dict.clear()
-            answer_dict[union_key] = list(set(union_value))
-            return answer_dict
+        elif not isinstance(self.answer, dict):
+            return {}
+        else:
+            try:
+                if e in self.answer and t in self.answer:
+                    union_set = set(self.answer[e]).union(set(self.answer[t]))
+                    intermediate_result = {t: union_set}
+                return {}
+            except:
+                print("ERROR for command: joint_str(%s,%s,%s)" % (e, r, t))
+            finally:
+                return intermediate_result
 
     # compare e by value for A7 and A8
     def compare_value(self, a, b):
@@ -548,37 +536,6 @@ class Symbolics_WebQSP():
         else:
             N = 0
         return [k for k in self.answer if len(self.answer[k]) < N]
-
-    # union set e to set t
-    def union2t(self, e, r, t):
-        # print("A9:", e, r, t)
-        if e == "" or t == "": return {}
-        if not e.startswith("Q"): return {}
-        answer_dict = self.answer
-        if type(answer_dict) == bool:
-            return False
-        elif type(answer_dict) != dict:
-            return {}
-        try:
-            if e in answer_dict and answer_dict[e] != None:
-                temp_dict = self.select(e, r, t)
-                if e in temp_dict:
-                    answer_dict[e] = set(answer_dict[e]) | set(temp_dict[e])
-            else:
-                answer_dict.update(self.select(e, r, t))
-        except:
-            print("ERROR for command: union(%s,%s,%s)" % (e, r, t))
-        finally:
-            # 进行 union 操作
-            # todo 这里前面都和select部分一样 所以还是应该拆开？ union单独做 好处是union可以不止合并两个 字典里的都可以合并
-            union_key = "|"
-            union_value = set([])
-            for k, v in answer_dict.items():
-                if v == None: v = []
-                union_value = union_value | set(v)
-            answer_dict.clear()
-            answer_dict[union_key] = list(set(union_value))
-            return answer_dict
 
     # equal, or equal
     def filter_or_equal(self, e, r, t):
