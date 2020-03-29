@@ -123,7 +123,7 @@ def getTrainingDatasetForPytorch(percentage, withint):
                         if str(type_value) != '':
                             question_string += str(type_value) + ' '
                 question_string += '</T> '
-                if 'int_mask' in value:
+                if withint and 'int_mask' in value:
                     question_string += '<I> '
                     types = value['int_mask']
                     if len(types) > 0:
@@ -269,7 +269,7 @@ def getTrainingDatasetForRl(percentage, withint):
                         if str(type_value) !='':
                             question_string += str(type_value) + ' '
                 question_string += '</T> '
-                if 'int_mask' in value:
+                if withint and 'int_mask' in value:
                     question_string += '<I> '
                     types = value['int_mask']
                     if len(types) > 0:
