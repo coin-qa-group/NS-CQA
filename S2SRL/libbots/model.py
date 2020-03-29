@@ -20,6 +20,10 @@ class PhraseModel(nn.Module):
         # Call __init__ function of PhraseModel's parent class (nn.Module).
         super(PhraseModel, self).__init__()
 
+        # self.embedding = torch.nn.Embedding(num_embeddings=vocab_size, embedding_dim=embeding_dim)
+        # num_embeddings = vocab_size
+        # embedding_dim = embeding_dim
+        # If no pre-trained embeddings is designated, the random vectors will be initialized.
         self.emb = nn.Embedding(num_embeddings=dict_size, embedding_dim=emb_size)
         if not EMBED_FLAG:
             for p in self.parameters():
