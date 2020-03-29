@@ -1090,12 +1090,12 @@ if __name__ == "__main__":
     # getNewAnnotationsForLogical()
     # If 'withint' is 'True', the int info is combined in the input sequence, otherwise not.
     # getAllQuestionsAndActions(withint=True)
-    getTrainingDatasetForPytorch(withint=True)
-    # getTrainingDatasetForRl(withint=False)
+    # getTrainingDatasetForPytorch(withint=True)
+    getTrainingDatasetForRl(withint=True)
     # rl_truereward_training_sets_for_10k(withint=True)
     # rl_truereward_training_sets_for_944k(withint=True)
-    # get_vocabulary_for_10k(withint=False)
-    # get_vocabulary_for_944k(withint=False)
+    get_vocabulary_for_10k(withint=True)
+    get_vocabulary_for_944k(withint=True)
     # getShareVocabularyForWebQSP()
 
 
