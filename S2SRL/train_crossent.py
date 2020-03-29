@@ -19,6 +19,7 @@ BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
 MAX_EPOCHES = 100
 MAX_TOKENS = 40
+MAX_TOKENS_INT = 43
 
 log = logging.getLogger("train")
 
@@ -85,7 +86,7 @@ if __name__ == "__main__":
 
     if args.int:
         log.info("Training model with INT mask information...")
-        phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH_INT, TRAIN_ACTION_PATH_INT, DIC_PATH_INT, MAX_TOKENS)
+        phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH_INT, TRAIN_ACTION_PATH_INT, DIC_PATH_INT, MAX_TOKENS_INT)
 
     # Index -> word.
     rev_emb_dict = {idx: word for word, idx in emb_dict.items()}

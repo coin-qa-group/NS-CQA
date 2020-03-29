@@ -14,12 +14,18 @@ special_counting_characters = {'-','|','&'}
 special_characters = {'(',')','-','|','&'}
 
 # Get full-set test dataset.
-def getTestDataset():
-    # fwTrainQ = open('../../data/auto_QA_data/mask_test/FINAL_train.question', 'w', encoding="UTF-8")
-    # fwTrainA = open('../../data/auto_QA_data/mask_test/FINAL_train.action', 'w', encoding="UTF-8")
-    fwTestQ = open('../../data/auto_QA_data/mask_test/FINAL_test.question', 'w', encoding="UTF-8")
-    fwTestA = open('../../data/auto_QA_data/mask_test/FINAL_test.action', 'w', encoding="UTF-8")
-    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json", 'r', encoding="UTF-8") as load_f:
+def getTestDataset(withint=False):
+    if withint:
+        question_path = '../../data/auto_QA_data/mask_test/FINAL_INT_test.question'
+        action_path = '../../data/auto_QA_data/mask_test/FINAL_INT_test.action'
+        JSON_path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test_INT.json'
+    else:
+        question_path = '../../data/auto_QA_data/mask_test/FINAL_test.question'
+        action_path = '../../data/auto_QA_data/mask_test/FINAL_test.action'
+        JSON_path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json'
+    fwTestQ = open(question_path, 'w', encoding="UTF-8")
+    fwTestA = open(action_path, 'w', encoding="UTF-8")
+    with open(JSON_path, 'r', encoding="UTF-8") as load_f:
         count = 1
         train_action_string_list, test_action_string_list, train_question_string_list, test_question_string_list = list(), list(), list(), list()
         dict_list = list()
@@ -44,6 +50,16 @@ def getTestDataset():
                         if str(type_value) !='':
                             question_string += str(type_value) + ' '
                 question_string += '</T> '
+
+                if withint and 'int_mask' in value:
+                    question_string += '<I> '
+                    types = value['int_mask']
+                    if len(types) > 0:
+                        for type_key, type_value in types.items():
+                            if str(type_value) != '':
+                                question_string += str(type_value) + ' '
+                    question_string += '</I> '
+
                 question_token = str(value['question']).lower().replace('?', '')
                 question_token = question_token.replace(',', ' ')
                 question_token = question_token.replace(':', ' ')
@@ -77,15 +93,23 @@ def getTestDataset():
     # fwTrainA.close()
     fwTestQ.close()
     fwTestA.close()
-    print ("Getting test processDataset is done!")
+    print("Getting test processDataset is done!")
 
 # Get one-tenth samples from test dataset as sample test-dataset.
 # LogicalReasoning: 20787; SimpleQuestion: 81994; QuantitativeReasoning: 27950; ComparativeReasoning: 15616; Verification: 10150;
 # Total samples in test dataset is: 156497.
-def getSampleTestDataset():
-    fwTestQ = open('../../data/auto_QA_data/mask_test/SAMPLE_FINAL_test.question', 'w', encoding="UTF-8")
-    fwTestA = open('../../data/auto_QA_data/mask_test/SAMPLE_FINAL_test.action', 'w', encoding="UTF-8")
-    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json", 'r', encoding="UTF-8") as load_f:
+def getSampleTestDataset(withint=False):
+    if not withint:
+        question_path = '../../data/auto_QA_data/mask_test/SAMPLE_FINAL_test.question'
+        action_path = '../../data/auto_QA_data/mask_test/SAMPLE_FINAL_test.action'
+        JSON_path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json'
+    else:
+        question_path = '../../data/auto_QA_data/mask_test/SAMPLE_FINAL_INT_test.question'
+        action_path = '../../data/auto_QA_data/mask_test/SAMPLE_FINAL_INT_test.action'
+        JSON_path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test_INT.json'
+    fwTestQ = open(question_path, 'w', encoding="UTF-8")
+    fwTestA = open(action_path, 'w', encoding="UTF-8")
+    with open(JSON_path, 'r', encoding="UTF-8") as load_f:
         count = 1
         train_action_string_list, test_action_string_list, train_question_string_list, test_question_string_list = list(), list(), list(), list()
         dict_list = list()
@@ -110,6 +134,16 @@ def getSampleTestDataset():
                         if str(type_value) !='':
                             question_string += str(type_value) + ' '
                 question_string += '</T> '
+
+                if withint and 'int_mask' in value:
+                    question_string += '<I> '
+                    types = value['int_mask']
+                    if len(types) > 0:
+                        for type_key, type_value in types.items():
+                            if str(type_value) != '':
+                                question_string += str(type_value) + ' '
+                    question_string += '</I> '
+
                 question_token = str(value['question']).lower().replace('?', '')
                 question_token = question_token.replace(',', ' ')
                 question_token = question_token.replace(':', ' ')
@@ -145,9 +179,16 @@ def getSampleTestDataset():
     # fwTrainA.close()
     fwTestQ.close()
     fwTestA.close()
-    print ("Getting test processDataset is done!")
+    print("Getting test processDataset is done!")
 
-def getSampleTestDatasetForMAML():
+def getSampleTestDatasetForMAML(withint=False):
+    if withint:
+        question_path = '/SAMPLE_FINAL_MAML_INT_test.question'
+        JSON_path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test_INT.json'
+    else:
+        question_path = '/SAMPLE_FINAL_MAML_test.question'
+        JSON_path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json'
+
     # Create target directory & all intermediate directories if don't exists
     dirName = '../../data/auto_QA_data/mask_test'
     if not os.path.exists(dirName):
@@ -155,9 +196,9 @@ def getSampleTestDatasetForMAML():
         print("Directory ", dirName, " Created ")
     else:
         print("Directory ", dirName, " already exists")
-    path = dirName + '/SAMPLE_FINAL_MAML_test.question'
+    path = dirName + question_path
     fwTestQ = open(path, 'w', encoding="UTF-8")
-    with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json", 'r', encoding="UTF-8") as load_f:
+    with open(JSON_path, 'r', encoding="UTF-8") as load_f:
         count = 1
         dict_list = {}
         load_dict = json.load(load_f)
@@ -195,6 +236,16 @@ def getSampleTestDatasetForMAML():
                             if str(type_value) != '':
                                 question_string += str(type_value) + ' '
                     question_string += '</T> '
+
+                    if withint and 'int_mask' in value:
+                        question_string += '<I> '
+                        types = value['int_mask']
+                        if len(types) > 0:
+                            for type_key, type_value in types.items():
+                                if str(type_value) != '':
+                                    question_string += str(type_value) + ' '
+                        question_string += '</I> '
+
                     question_token = str(value['question']).lower().replace('?', '')
                     question_token = question_token.replace(',', ' ')
                     question_token = question_token.replace(':', ' ')
@@ -209,13 +260,13 @@ def getSampleTestDatasetForMAML():
     if len(dict_list) > 0:
         fwTestQ.writelines(json.dumps(dict_list, indent=1, ensure_ascii=False))
     fwTestQ.close()
-    print ("Getting MAML processDataset is done!")
+    print("Getting MAML processDataset is done!")
 
 # Run getTestDataset to get the final test processDataset.
 if __name__ == "__main__":
-    # getTestDataset()
-    # getSampleTestDataset()
-    getSampleTestDatasetForMAML()
+    getTestDataset(withint=True)
+    getSampleTestDataset(withint=True)
+    getSampleTestDatasetForMAML(withint=True)
 
 
 

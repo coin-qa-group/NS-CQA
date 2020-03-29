@@ -23,11 +23,13 @@ log1 = logging.basicConfig(level=logging.INFO,#控制台打印的日志级别
 
 def transMask2Action(state, withint):
     if withint:
-        path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test_INT.json'
+        json_path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test_INT.json'
+        question_path = '../../data/auto_QA_data/mask_test/SAMPLE_FINAL_INT_test.question'
     else:
-        path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json'
-    with open(path, 'r') as load_f, open("../../data/saves/rl_even_true_1%/sample_final_predict.actions", 'r') as predict_actions \
-            , open("../../data/auto_QA_data/mask_test/SAMPLE_FINAL_test.question", 'r') as RL_test:
+        json_path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json'
+        question_path = '../../data/auto_QA_data/mask_test/SAMPLE_FINAL_test.question'
+    with open(json_path, 'r') as load_f, open("../../data/saves/crossent_even_1%_att=0_withINT/sample_final_int_predict.actions", 'r') as predict_actions \
+            , open(question_path, 'r') as RL_test:
         # with open("../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json", 'r') as load_f, open("../../data/saves/rl_even_TR_batch8_1%/final_predict.actions", 'r') as predict_actions \
         #         , open("../../data/auto_QA_data/mask_test/FINAL_test.question", 'r') as RL_test:
         linelist = list()
@@ -391,5 +393,5 @@ def calculate_MAML_result(file_path, withint):
     fw.close()
 
 if __name__ == "__main__":
-    # calculate_RL_or_DL_result('sample_test_TR_1%_batch8_att=1_200', withint=True)
-    calculate_MAML_result('maml_1%_batch8_att=0', withint=True)
+    calculate_RL_or_DL_result('crossent_even_1%_att=0_withINT', withint=True)
+    # calculate_MAML_result('maml_1%_batch8_att=0', withint=True)
