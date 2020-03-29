@@ -97,6 +97,10 @@ def processSparql(sparql_str, id="empty"):
         untreated_list = sparql_str.split("\n")
         answer_keys = []
         index = -1
+        sparql_str_type = "simple1"
+        has_filter = False
+        has_datetime = False
+
         for untreated_str in untreated_list:
             index += 1
             action_type = "A1"
@@ -117,6 +121,11 @@ def processSparql(sparql_str, id="empty"):
             if "UNION" == untreated_str:
                 if b_print:
                     print("has union", id)
+                sparql_str_type = "union"
+            if "FILTER" in untreated_str:
+                has_filter = True
+            if "xsd:datetime" in untreated_str:
+                has_datetime = True
 
             if untreated_str.startswith("SELECT"):  # find answer key
                 for item in untreated_str.split(" "):
@@ -217,7 +226,10 @@ def processSparql(sparql_str, id="empty"):
             seqlist.append(item.t)
             seqset[item.action_type] = seqlist
             old_sqarql_list.append(seqset)
-        return old_sqarql_list
+
+        if has_filter and has_datetime:
+            sparql_str_type = "filter_date"
+        return old_sqarql_list, sparql_str_type
 
 # parse sparql for value type answer
 def processSparql_value(sparql_str, id="empty"):
@@ -390,6 +402,8 @@ def process_webqsp_RL():
     json_errorlist = []
     true_count = 0
     errorlist = []
+    has_datetime_list = []
+    has_union_list = []
 
     final_data_RL_train = {}
     final_data_RL_test = {}
@@ -413,7 +427,7 @@ def process_webqsp_RL():
     all_questions = train_questions + test_questions
     small_questions = train_questions[0:50] + test_questions[0:50]
 
-    process_questions = test_questions
+    process_questions = all_questions
     # total rewards
     total_reward = 0
     test_count = 0
@@ -464,7 +478,12 @@ def process_webqsp_RL():
                         # test seq
                         true_answer = Answers
                         test_sparql = sparql
-                        seq = processSparql(test_sparql, id)
+                        seq, sparql_str_type = processSparql(test_sparql, id)
+                        if sparql_str_type == "UNION":
+                            has_union_list.append(id)
+                        elif sparql_str_type == "filter_date":
+                            has_datetime_list.append(id)
+
                         if b_print:
                             print(seq)
                         symbolic_exe = Symbolics_WebQSP(seq)
@@ -499,12 +518,14 @@ def process_webqsp_RL():
                                     t_index = 1
                                     for srt in seq:
                                         for k, v in srt.items():
-                                            if v[0] != "":
+                                            if v[0] != "" and v[0] not in entity:
                                                 entity.add(v[0])
-                                            if v[1] != "":
+                                            if v[1] != "" and v[1] not in relation:
                                                 relation.add(v[1])
-                                            if v[2] != "":
-                                                type.add(v[2])
+                                            if v[2] != "" and v[2] not in entity:
+                                                entity.add(v[2])
+                                            # if v[2] != "":
+                                            #     type.add(v[2])
                                     entity = list(entity)
                                     relation = list(relation)
                                     type = list(type)
@@ -619,7 +640,10 @@ def process_webqsp_RL():
     print("mean_reward_precision: ", mean_reward_precision)
     print("mean_reward_f1: ", mean_reward)
     print("{0} pairs correct".format(true_count))
-    print(errorlist)
+    print("errorlist", errorlist)
+    print("has_union_list", has_union_list)
+    print("has_datetime_list", has_datetime_list)
+
 
     # not x
     jsondata = json.dumps(no_x_list, indent=1)
