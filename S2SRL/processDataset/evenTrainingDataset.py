@@ -351,8 +351,8 @@ def getTrainingDatasetForRlWithTrueReward(percentage, SIZE, withint):
     else:
         print("Directory ", dirName, " already exists")
     if withint:
-        path1 = dirName + '/RL_train_TR_new_2k_INT.question'
-        path2 = dirName + '/RL_test_TR_new_2k_INT.question'
+        path1 = dirName + '/RL_train_TR_new_INT.question'
+        path2 = dirName + '/RL_test_TR_new_INT.question'
         path3 = '../../data/auto_QA_data/CSQA_DENOTATIONS_full_944K_INT.json'
     else:
         path1 = dirName + '/RL_train_TR_new_2k.question'
@@ -418,7 +418,7 @@ def getTrainingDatasetForRlWithTrueReward(percentage, SIZE, withint):
 if __name__ == "__main__":
     # percentage represents how much samples (0.2% ~ 1.2%) are drawn from the whole training dataset.
     percentage = '1.0%'
-    size = 296
-    getTrainingDatasetForPytorch(percentage, withint=True)
+    size = 1479
+    # getTrainingDatasetForPytorch(percentage, withint=True)
     # getTrainingDatasetForRl(percentage, withint=True)
-    # getTrainingDatasetForRlWithTrueReward(percentage, size, withint=True)
+    getTrainingDatasetForRlWithTrueReward(percentage, size, withint=True)

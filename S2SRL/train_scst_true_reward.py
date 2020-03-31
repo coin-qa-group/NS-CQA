@@ -26,7 +26,10 @@ TRAIN_RATIO = 0.985
 GAMMA = 0.05
 
 DIC_PATH = '../data/auto_QA_data/share.question'
+DIC_PATH_INT = '../data/auto_QA_data/share_INT.question'
+# DIC_PATH_INT = '../data/auto_QA_data/share_944K_INT.question'
 TRAIN_QUESTION_ANSWER_PATH = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new_2k.question'
+TRAIN_QUESTION_ANSWER_PATH_INT = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new_INT.question'
 log = logging.getLogger("train")
 
 
@@ -58,7 +61,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%_att=1/pre_bleu_0.944_94.dat', '-n=rl_even_TR_1%_batch8_att=1', '-s=5', '-a=0', '--att=1', '--lstm=1']
+    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%_att=0_withINT/pre_bleu_0.952_84.dat', '-n=rl_TR_1%_batch8_att=0_withINT', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=50']
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. Empty string to train on full processDataset")
@@ -67,6 +70,8 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--load", required=True, help="Load the pre-trained model whereby continue training the RL mode")
     # Number of decoding samples.
     parser.add_argument("-s", "--samples", type=int, default=4, help="Count of samples in prob mode")
+    # The dimension of the word embeddings.
+    parser.add_argument("-w2v", "--word_dimension", type=int, default=50, help="The dimension of the word embeddings")
     # Choose the function to compute reward (0-1 or adaptive reward).
     # If a = true, 1 or yes, the adaptive reward is used. Otherwise 0-1 reward is used.
     parser.add_argument("-a", "--adaptive", type=lambda x: (str(x).lower() in ['true', '1', 'yes']), help="0-1 or adaptive reward")
@@ -78,7 +83,8 @@ if __name__ == "__main__":
     parser.add_argument("--lstm", type=lambda x: (str(x).lower() in ['true', '1', 'yes']),
                         help="Using LSTM mechanism in seq2seq")
     # If false, the embedding tensors in the model do not need to be trained.
-    parser.add_argument('--embed-grad', action='store_false', help='use the first-order approximation of MAML')
+    parser.add_argument('--embed-grad', action='store_false', help='optimizing word embeddings when training')
+    parser.add_argument('--int', action='store_true', help='training model with INT mask information')
     args = parser.parse_args()
     device = torch.device("cuda" if args.cuda else "cpu")
     log.info("Device info: %s", str(device))
@@ -87,8 +93,13 @@ if __name__ == "__main__":
     os.makedirs(saves_path, exist_ok=True)
 
     # # List of (question, {question information and answer}) pairs, the training pairs are in format of 1:1.
-    phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS)
-    log.info("Obtained %d phrase pairs with %d uniq words from %s.", len(phrase_pairs), len(emb_dict), TRAIN_QUESTION_ANSWER_PATH)
+    if args.int:
+        phrase_pairs, emb_dict = data.load_RL_data_TR_INT(TRAIN_QUESTION_ANSWER_PATH_INT, DIC_PATH_INT, MAX_TOKENS_INT)
+        log.info("Obtained %d phrase pairs with %d uniq words from %s with INT mask information.", len(phrase_pairs), len(emb_dict), TRAIN_QUESTION_ANSWER_PATH_INT)
+    else:
+        phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS)
+        log.info("Obtained %d phrase pairs with %d uniq words from %s without INT mask information.", len(phrase_pairs), len(emb_dict), TRAIN_QUESTION_ANSWER_PATH)
+
     data.save_emb_dict(saves_path, emb_dict)
     end_token = emb_dict[data.END_TOKEN]
     train_data = data.encode_phrase_pairs_RLTR(phrase_pairs, emb_dict)
@@ -113,7 +124,7 @@ if __name__ == "__main__":
     # Index -> word.
     rev_emb_dict = {idx: word for word, idx in emb_dict.items()}
     # PhraseModel.__init__() to establish a LSTM model.
-    net = model.PhraseModel(emb_size=model.EMBEDDING_DIM, dict_size=len(emb_dict), hid_size=model.HIDDEN_STATE_SIZE, LSTM_FLAG=args.lstm, ATT_FLAG=args.att).to(device)
+    net = model.PhraseModel(emb_size=args.word_dimension, dict_size=len(emb_dict), hid_size=model.HIDDEN_STATE_SIZE, LSTM_FLAG=args.lstm, ATT_FLAG=args.att).to(device)
     # Using cuda.
     net.cuda()
     log.info("Model: %s", net)
@@ -134,8 +145,8 @@ if __name__ == "__main__":
     # TBMeanTracker (TensorBoard value tracker):
     # allows to batch fixed amount of historical values and write their mean into TB
     with ptan.common.utils.TBMeanTracker(writer, batch_size=100) as tb_tracker:
-        # TODO: filter(lambda p: p.requires_grad, net.parameters())
-        optimiser = optim.Adam(net.parameters(), lr=LEARNING_RATE, eps=1e-3)
+        # optimiser = optim.Adam(net.parameters(), lr=LEARNING_RATE, eps=1e-3)
+        optimiser = optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=LEARNING_RATE, eps=1e-3)
         batch_idx = 0
         batch_count = 0
         best_true_reward = None

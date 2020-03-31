@@ -55,7 +55,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
 
     # command line parameters
-    sys.argv = ['train_crossent.py', '--cuda', '--n=crossent_even_1%_att=0_withINT', '--att=0', '--lstm=1', '--int']
+    sys.argv = ['train_crossent.py', '--cuda', '--n=crossent_even_1%_att=0_withINT', '--att=0', '--lstm=1', '--int', '-w2v=300']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. "
@@ -72,6 +72,7 @@ if __name__ == "__main__":
     # If false, the embedding tensors in the model do not need to be trained.
     parser.add_argument('--embed-grad', action='store_false', help='the embeddings would not be optimized when training')
     parser.add_argument('--int', action='store_true', help='training model with INT mask information')
+    parser.add_argument("-w2v", "--word_dimension", type=int, default=50, help="The dimension of the word embeddings")
     args = parser.parse_args()
     device = torch.device("cuda" if args.cuda else "cpu")
     log.info("Device info: %s", str(device))
@@ -110,7 +111,7 @@ if __name__ == "__main__":
     else:
         log.info("Using RNN mechanism to train the SEQ2SEQ model...")
 
-    net = model.PhraseModel(emb_size=model.EMBEDDING_DIM, dict_size=len(emb_dict),
+    net = model.PhraseModel(emb_size=args.word_dimension, dict_size=len(emb_dict),
                             hid_size=model.HIDDEN_STATE_SIZE, LSTM_FLAG=args.lstm, ATT_FLAG=args.att).to(device)
     # 转到cuda
     net.cuda()
