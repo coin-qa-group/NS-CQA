@@ -12,7 +12,7 @@ from symbolics import Symbolics
 from transform_util import transformBooleanToString, list2dict
 import logging
 log1 = logging.basicConfig(level=logging.INFO,#控制台打印的日志级别
-                    filename='../../data/auto_QA_data/test_result/sample_test_result_maml_1%_batch8_att=0.log',
+                    filename='../../data/auto_QA_data/test_result/crossent_even_1%_att=0_withINT.log',
                     # filename='../../data/auto_QA_data/test_result/1.0%_full_test_result_TR_batch8.log',
                     filemode='w',##模式，有w和a，w就是写模式，每次都会重新写日志，覆盖之前的日志
                     #a是追加模式，默认如果不写的话，就是追加模式
