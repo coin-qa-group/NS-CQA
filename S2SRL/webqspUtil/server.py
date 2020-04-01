@@ -176,6 +176,8 @@ class Interpreter():
                 if len(e_item_date_list) == 1:
                     if self.convert_to_date(e_item_date_list[0]) <= self.convert_to_date(date):
                         right_date_e_list.append(e_item)
+            else:
+                right_date_e_list.append(e_item)
         return right_date_e_list, 0
 
     # 大于等于date时间的集合
@@ -190,6 +192,8 @@ class Interpreter():
                 if len(e_item_date_list) == 1:
                     if self.convert_to_date(e_item_date_list[0]) >= self.convert_to_date(date):
                         right_date_e_list.append(e_item)
+            else:
+                right_date_e_list.append(e_item)
         return right_date_e_list, 0
 
     def execute_none(self, argument_value, argument_location):

@@ -11,7 +11,8 @@ b_print = True
 LINE_SIZE = 100000
 special_counting_characters = {'-','|','&'}
 special_characters = {'(',')','-','|','&'}
-
+mask_path = '../../data/webqsp_data/test/'
+mask_path_RL = '../../data/webqsp_data/test/'
 # action sequence
 class Action():
     def __init__(self, action_type, e, r, t):
@@ -91,8 +92,11 @@ class WebQSP(object):
             }
         }
 
+def getViriableNameByIndex(sparql_str, n):
+    return "?x"
+
 # parse sparql in dataset to action sequence
-def processSparql(sparql_str, id="empty"):
+def processSparql(sparql_str, id="empty", constraint_list=[]):
         sparql_list = []
         untreated_list = sparql_str.split("\n")
         answer_keys = []
@@ -126,6 +130,9 @@ def processSparql(sparql_str, id="empty"):
                 has_filter = True
             if "xsd:datetime" in untreated_str:
                 has_datetime = True
+
+            if "FILTER(NOT EXISTS" in untreated_str:
+                a = 1
 
             if untreated_str.startswith("SELECT"):  # find answer key
                 for item in untreated_str.split(" "):
@@ -399,6 +406,7 @@ def process_webqsp_RL():
     to_skip_list = []
     result_list = []
     no_x_list = []
+    parse_error_list = []
     json_errorlist = []
     true_count = 0
     errorlist = []
@@ -464,6 +472,39 @@ def process_webqsp_RL():
                 answer_type = answerList[0]['AnswerType']
                 response_entities = Answers
                 orig_response_str = ', '.join(orig_response_list)
+
+                constraint_list = q['Constraints']
+                for constraint in constraint_list:
+                    Operator = constraint['Operator']
+                    ArgumentType = constraint['ArgumentType']
+                    Argument = constraint['Argument']
+                    EntityName = constraint['EntityName']
+                    SourceNodeIndex = constraint['SourceNodeIndex']
+                    NodePredicate = constraint['NodePredicate']
+                    ValueType = constraint['ValueType']
+                    if Operator == "LessOrEqual":
+                        s = 1
+
+                    if Operator == "GreaterOrEqual":
+                        s = 1
+
+                    # "Operator": "Equal",
+                    # "ArgumentType": "Entity",
+                    # "Argument": "m.04ztj",
+                    # "EntityName": "Marriage",
+                    # "SourceNodeIndex": 0,
+                    # "NodePredicate": "people.marriage.type_of_union",
+                    # "ValueType": "String"
+
+                    # "Operator": "LessOrEqual",
+                    # "ArgumentType": "Value",
+                    # "Argument": "2015-08-10",
+                    # "EntityName": "",
+                    # "SourceNodeIndex": 0,
+                    # "NodePredicate": "sports.sports_team_roster.from",
+                    # # "ValueType": "DateTime"
+
+
                 if answer_type == "Value":
                     AnswerType_Value_idlist.append(id)
                     sr_list = processSparql_value(sparql)
@@ -478,7 +519,7 @@ def process_webqsp_RL():
                         # test seq
                         true_answer = Answers
                         test_sparql = sparql
-                        seq, sparql_str_type = processSparql(test_sparql, id)
+                        seq, sparql_str_type = processSparql(test_sparql, id, constraint_list)
                         if sparql_str_type == "UNION":
                             has_union_list.append(id)
                         elif sparql_str_type == "filter_date":
@@ -507,7 +548,7 @@ def process_webqsp_RL():
                                 reward_recall = calc_01_reward_type(res_answer, true_answer, "recall")
                                 reward_precision = calc_01_reward_type(res_answer, true_answer, "precision")
                                 test_count += 1
-                                if reward == 1.0:
+                                if reward <= 1.0:
                                     # if get right answer, generate action sequence
                                     true_count += 1
                                     entity = set()
@@ -522,16 +563,22 @@ def process_webqsp_RL():
                                                 entity.add(v[0])
                                             if v[1] != "" and v[1] not in relation:
                                                 relation.add(v[1])
-                                            if v[2] != "" and v[2] not in entity:
-                                                entity.add(v[2])
-                                            # if v[2] != "":
-                                            #     type.add(v[2])
+                                            # if v[2] != "" and v[2] not in entity:
+                                            #     entity.add(v[2])
+                                            if v[2] != "" and v[2] not in type:
+                                                type.add(v[2])
                                     entity = list(entity)
                                     relation = list(relation)
                                     type = list(type)
                                     entity_mask = dict()
                                     relation_mask = dict()
                                     type_mask = dict()
+                                    # try:
+                                    #     entity = sorted(entity)
+                                    # finally:
+                                    #     entity = entity
+                                    # relation = sorted(relation)
+                                    # type = sorted(type)
                                     for e in entity:
                                         dict_entity = {e: "ENTITY{0}".format(e_index)}
                                         entity_mask.update(dict_entity)
@@ -560,7 +607,7 @@ def process_webqsp_RL():
                                             t_mask_key = v[2]
                                             e_mask = entity_mask[e_mask_key] if e_mask_key != "" else ""
                                             r_mask = relation_mask[r_mask_key] if r_mask_key != "" else ""
-                                            t_mask = type_mask[t_mask_key] if t_mask_key != "" else ""
+                                            t_mask = type_mask[t_mask_key] if t_mask_key != "" and t_mask_key in type_mask else ""
                                         if a_mask != "":
                                             masklist.append(e_mask)
                                             masklist.append(r_mask)
@@ -568,7 +615,6 @@ def process_webqsp_RL():
                                             mask_set = {a_mask: masklist}
                                             mask_action_sequence_list.append(mask_set)
                                     if id != "" and question != "" and seq != "":
-
                                         question_string = '<E> '
                                         if len(entity_mask) > 0:
                                             for entity_key, entity_value in entity_mask.items():
@@ -627,6 +673,7 @@ def process_webqsp_RL():
                                 no_x_list.append(id)
                         except Exception as exception:
                             print(exception)
+                            parse_error_list.append(id)
                             pass
 
     print('all_count', all_count)
@@ -643,11 +690,18 @@ def process_webqsp_RL():
     print("errorlist", errorlist)
     print("has_union_list", has_union_list)
     print("has_datetime_list", has_datetime_list)
+    print("parse_error_list", parse_error_list)
 
 
     # not x
     jsondata = json.dumps(no_x_list, indent=1)
     fileObject = open('no_x_list.json', 'w')
+    fileObject.write(jsondata)
+    fileObject.close()
+
+    # parse_error_list
+    jsondata = json.dumps(parse_error_list, indent=1)
+    fileObject = open('parse_error_list.json', 'w')
     fileObject.write(jsondata)
     fileObject.close()
 
@@ -683,42 +737,42 @@ def process_webqsp_RL():
 
     # final_data_RL
     jsondata = json.dumps(final_data_RL_train, indent=1)
-    fileObject = open('../../data/webqsp_data/test/final_webqsp_train_RL.json', 'w')
+    fileObject = open(mask_path_RL + 'final_webqsp_train_RL.json', 'w')
     fileObject.write(jsondata)
     fileObject.close()
 
     jsondata = json.dumps(final_data_RL_test, indent=1)
-    fileObject = open('../../data/webqsp_data/test/final_webqsp_test_RL.json', 'w')
+    fileObject = open(mask_path_RL + 'final_webqsp_test_RL.json', 'w')
     fileObject.write(jsondata)
     fileObject.close()
 
     # final_data_seq2seq
     jsondata = json.dumps(final_data_seq2seq_train, indent=1)
-    fileObject = open('../../data/webqsp_data/test/final_data_seq2seq_train.json', 'w')
+    fileObject = open(mask_path_RL + 'final_data_seq2seq_train.json', 'w')
     fileObject.write(jsondata)
     fileObject.close()
 
     # final_data_seq2seq
     jsondata = json.dumps(final_data_seq2seq_test, indent=1)
-    fileObject = open('../../data/webqsp_data/test/final_data_seq2seq_test.json', 'w')
+    fileObject = open(mask_path_RL + 'final_data_seq2seq_test.json', 'w')
     fileObject.write(jsondata)
     fileObject.close()
 
     # final_data_
     jsondata = json.dumps(final_data_seq2seq, indent=1)
-    fileObject = open('../../data/webqsp_data/test/final_data_seq2seq.json', 'w')
+    fileObject = open(mask_path_RL + 'final_data_seq2seq.json', 'w')
     fileObject.write(jsondata)
     fileObject.close()
 
 
 # Get training data for sequence2sequence.
 def getTrainingDatasetForPytorch_seq2seq_webqsp():
-    fwTrainQ = open('../../data/webqsp_data/test/mask/PT_train.question', 'w', encoding="UTF-8")
-    fwTrainA = open('../../data/webqsp_data/test/mask/PT_train.action', 'w', encoding="UTF-8")
-    fwTestQ = open('../../data/webqsp_data/test/mask/PT_test.question', 'w', encoding="UTF-8")
-    fwTestA = open('../../data/webqsp_data/test/mask/PT_test.action', 'w', encoding="UTF-8")
-    fwQuestionDic = open('../../data/webqsp_data/test/mask/dic_py.question', 'w', encoding="UTF-8")
-    fwActionDic = open('../../data/webqsp_data/test/mask/dic_py.action', 'w', encoding="UTF-8")
+    fwTrainQ = open(mask_path + 'PT_train.question', 'w', encoding="UTF-8")
+    fwTrainA = open(mask_path + 'PT_train.action', 'w', encoding="UTF-8")
+    fwTestQ = open(mask_path + 'PT_test.question', 'w', encoding="UTF-8")
+    fwTestA = open(mask_path + 'PT_test.action', 'w', encoding="UTF-8")
+    fwQuestionDic = open(mask_path + 'dic_py.question', 'w', encoding="UTF-8")
+    fwActionDic = open(mask_path + 'dic_py.action', 'w', encoding="UTF-8")
     questionSet = set()
     actionSet = set()
     with open("../../data/webqsp_data/test/final_data_seq2seq.json", 'r', encoding="UTF-8") as load_f:
@@ -823,9 +877,9 @@ def getShareVocabularyForWebQSP():
     questionVocab = set()
     actionVocab = set()
     actionVocab_list = list()
-    with open('../../data/webqsp_data/test/mask/dic_py.question', 'r', encoding="UTF-8") as infile1, \
-            open('../../data/webqsp_data/test/mask/dic_rl.question', 'r', encoding="UTF-8") as infile2, \
-            open('../../data/webqsp_data/test/mask/dic_rl_tr.question', 'r', encoding="UTF-8") as infile3:
+    with open(mask_path + 'dic_py.question', 'r', encoding="UTF-8") as infile1, \
+            open(mask_path + 'dic_rl.question', 'r', encoding="UTF-8") as infile2, \
+            open(mask_path + 'dic_rl_tr.question', 'r', encoding="UTF-8") as infile3:
         count = 0
         while True:
             lines_gen = list(islice(infile1, LINE_SIZE))
@@ -856,7 +910,7 @@ def getShareVocabularyForWebQSP():
                 questionVocab.add(token)
                 count = count + 1
             print(count)
-    with open('../../data/webqsp_data/test/mask/dic_py.action', 'r', encoding="UTF-8") as infile1, open('../../data/webqsp_data/test/mask/dic_rl.action', 'r', encoding="UTF-8") as infile2:
+    with open(mask_path + 'dic_py.action', 'r', encoding="UTF-8") as infile1, open(mask_path + 'dic_rl.action', 'r', encoding="UTF-8") as infile2:
         count = 0
         while True:
             lines_gen = list(islice(infile1, LINE_SIZE))
@@ -891,7 +945,7 @@ def getShareVocabularyForWebQSP():
     share_vocab_list = actionVocab_list + questionVocab_list
     for i in range(len(share_vocab_list)):
         share_vocab_list[i] = share_vocab_list[i] + '\n'
-    fw = open('../../data/webqsp_data/test/share.webqsp.question', 'w', encoding="UTF-8")
+    fw = open(mask_path_RL + 'share.webqsp.question', 'w', encoding="UTF-8")
     fw.writelines(share_vocab_list)
     fw.close()
     print("Writing SHARE VOCAB is done!")
@@ -899,13 +953,13 @@ def getShareVocabularyForWebQSP():
 
 # Get training data for REINFORCE (using annotation instead of denotation as reward).
 def getTrainingDatasetForRlWebQSP():
-    fwTrainQ = open('../../data/webqsp_data/test/mask/RL_train.question', 'w', encoding="UTF-8")
-    fwTrainA = open('../../data/webqsp_data/test/mask/RL_train.action', 'w', encoding="UTF-8")
-    fwTestQ = open('../../data/webqsp_data/test/mask/RL_test.question', 'w', encoding="UTF-8")
-    fwTestA = open('../../data/webqsp_data/test/mask/RL_test.action', 'w', encoding="UTF-8")
-    fwQuestionDic = open('../../data/webqsp_data/test/mask/dic_rl.question', 'w', encoding="UTF-8")
-    fwActionDic = open('../../data/webqsp_data/test/mask/dic_rl.action', 'w', encoding="UTF-8")
-    fwNoaction = open('../../data/webqsp_data/test/mask/no_action_question.txt', 'w', encoding="UTF-8")
+    fwTrainQ = open(mask_path + 'RL_train.question', 'w', encoding="UTF-8")
+    fwTrainA = open(mask_path + 'RL_train.action', 'w', encoding="UTF-8")
+    fwTestQ = open(mask_path + 'RL_test.question', 'w', encoding="UTF-8")
+    fwTestA = open(mask_path + 'RL_test.action', 'w', encoding="UTF-8")
+    fwQuestionDic = open(mask_path + 'dic_rl.question', 'w', encoding="UTF-8")
+    fwActionDic = open(mask_path + 'dic_rl.action', 'w', encoding="UTF-8")
+    fwNoaction = open(mask_path + 'no_action_question.txt', 'w', encoding="UTF-8")
     no_action_question_list = list()
     questionSet = set()
     actionSet = set()
@@ -1021,15 +1075,17 @@ def getTrainingDatasetForRlWebQSP():
 def testInputData():
     # # List of (question, {question information and answer}) pairs, the training pairs are in format of 1:1.
     MAX_TOKENS = 40
-    DIC_PATH = '../../data/webqsp_data/test/share.webqsp.question'
-    TRAIN_QUESTION_ANSWER_PATH = '../../data/webqsp_data/test/final_webqsp_train_RL.json'
+    DIC_PATH = mask_path_RL + 'share.webqsp.question'
+    TRAIN_QUESTION_ANSWER_PATH = mask_path_RL + 'final_webqsp_train_RL.json'
     phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS)
     print("Obtained {0} phrase pairs with {1} uniq words from {2}.".format(len(phrase_pairs), len(emb_dict), TRAIN_QUESTION_ANSWER_PATH))
 
 if __name__ == "__main__":
     print("start process webqsp dataset")
     process_webqsp_RL()   # dataset to mask
-    # getTrainingDatasetForPytorch_seq2seq_webqsp()
+
+    getTrainingDatasetForPytorch_seq2seq_webqsp() # PT.train
+
     # getTrainingDatasetForRlWebQSP()
     # getShareVocabularyForWebQSP() # share.question
     # testInputData()

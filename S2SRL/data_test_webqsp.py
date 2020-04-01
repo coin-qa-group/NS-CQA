@@ -107,8 +107,8 @@ if __name__ == "__main__":
                 if token in rev_emb_dict and rev_emb_dict.get(token)!= '#END':
                     reference_string += str(rev_emb_dict.get(token)).upper() + ' '
             reference_string = reference_string.strip()
-            if token_string == reference_string:
-                flag = True
+            # if token_string == reference_string:
+            #     flag = True
             # log.info("%d REFER: %s", test_dataset_count, reference_string)
             refer_string_list.append(str(test_dataset_count) + ': ' + reference_string + '\n')
 
@@ -118,6 +118,8 @@ if __name__ == "__main__":
         print(reference_string)
         print (len(tokens))
         print (len(references[0]))
+        if tokens == references[0]:
+            flag = True
 
         bleu = utils.calc_bleu_many(tokens, references)
 
@@ -140,8 +142,7 @@ if __name__ == "__main__":
         sum_bleu += bleu
         seq_count += 1
 
-
-
+    log.info("all ", test_dataset_count, "right ", correct_count)
 
     log.info("Obtained %d phrase pairs with %d uniq words", len(phrase_pairs), len(emb_dict))
     log.info("Processed %d phrases, mean BLEU = %.4f", seq_count, sum_bleu / seq_count)

@@ -20,7 +20,7 @@ if __name__ == "__main__":
     # # command line parameters for final test
     # sys.argv = ['data_test.py', '-m=bleu_0.984_09.dat', '-p=final', '--n=rl_even']
     # command line parameters for final test (subset data)
-    sys.argv = ['data_test_RL_webqsp.py', '-m=epoch_007_0.941_0.000.dat', '-p=rl', '--n=crossent_even', '--att=1', '--lstm=1']
+    sys.argv = ['data_test_RL_webqsp.py', '-m=epoch_010_0.557_0.000.dat', '-p=rl', '--n=crossent_even', '--att=1', '--lstm=1']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True,
