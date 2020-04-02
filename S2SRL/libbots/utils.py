@@ -75,7 +75,7 @@ def calc_True_Reward_webqsp(action_sequence, qa_info, adaptive_flag = False):
 
     #print("new_action", new_action)
     symbolic_seq = list2dict_webqsp(new_action)
-    print (symbolic_seq)
+    # print (symbolic_seq)
     symbolic_exe = Symbolics_WebQSP(symbolic_seq)
     answer = symbolic_exe.executor()
     if "?x" in answer:

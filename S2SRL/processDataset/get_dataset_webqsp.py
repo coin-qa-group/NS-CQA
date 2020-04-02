@@ -3,6 +3,7 @@ import json
 import sys
 sys.path.insert(0, '../SymbolicExecutor/')
 from symbolics_webqsp import Symbolics_WebQSP
+from symbolics_webqsp_novar import Symbolics_WebQSP_novar
 from itertools import islice
 sys.path.insert(0, '../../S2SRL/')
 from libbots import data, model, utils
@@ -228,9 +229,15 @@ def processSparql(sparql_str, id="empty", constraint_list=[]):
         for item in reorder_sparql_list:
             seqset = {}
             seqlist = []
-            seqlist.append(item.e)
-            seqlist.append(item.r)
-            seqlist.append(item.t)
+            # seqlist.append(item.e)
+            # seqlist.append(item.r)
+            # seqlist.append(item.t)
+            if str(item.e) != '' and '?' not in str(item.e):
+                seqlist.append(item.e)
+            if str(item.r) != '' and '?' not in str(item.r):
+                seqlist.append(item.r)
+            if str(item.t) != '' and '?' not in str(item.t) :
+                seqlist.append(item.t)
             seqset[item.action_type] = seqlist
             old_sqarql_list.append(seqset)
 
@@ -252,6 +259,9 @@ def processSparql_value(sparql_str, id="empty"):
                 r = value_str_list[1]
                 return [s, r]
         return []
+
+def getsimple_seq(seq):
+    return seq
 
 def isValidAction(action_item):
     e = action_item.e
@@ -520,6 +530,7 @@ def process_webqsp_RL():
                         true_answer = Answers
                         test_sparql = sparql
                         seq, sparql_str_type = processSparql(test_sparql, id, constraint_list)
+                        seq = getsimple_seq(seq)
                         if sparql_str_type == "UNION":
                             has_union_list.append(id)
                         elif sparql_str_type == "filter_date":
@@ -527,13 +538,14 @@ def process_webqsp_RL():
 
                         if b_print:
                             print(seq)
-                        symbolic_exe = Symbolics_WebQSP(seq)
+                        symbolic_exe = Symbolics_WebQSP_novar(seq)
                         answer = symbolic_exe.executor()
                         if b_print:
                             print("answer: ", answer)
                             print("true_answer: ", true_answer)
                         try:
-                            key = "?x"
+                            # key = "?x"
+                            key = "ANSWER"
                             if key in answer:
                                 res_answer = answer[key]
                                 reward = calc_01_reward_type(res_answer, true_answer, "f1")
@@ -559,17 +571,22 @@ def process_webqsp_RL():
                                     t_index = 1
                                     for srt in seq:
                                         for k, v in srt.items():
-                                            if v[0] != "" and v[0] not in entity:
-                                                entity.add(v[0])
-                                            if v[1] != "" and v[1] not in relation:
-                                                relation.add(v[1])
+                                            if len(v) > 0:
+                                                if v[0] != "" and v[0] not in entity:
+                                                    entity.add(v[0])
+                                            if len(v) > 1:
+                                                if v[1] != "" and v[1] not in relation:
+                                                    relation.add(v[1])
                                             # if v[2] != "" and v[2] not in entity:
                                             #     entity.add(v[2])
-                                            if v[2] != "" and v[2] not in type:
-                                                type.add(v[2])
+                                            if len(v) > 2:
+                                                if v[2] != "" and v[2] not in type:
+                                                    type.add(v[2])
                                     entity = list(entity)
                                     relation = list(relation)
                                     type = list(type)
+                                    type.sort(reverse=True)
+                                    entity.sort(reverse=True)
                                     entity_mask = dict()
                                     relation_mask = dict()
                                     type_mask = dict()
@@ -676,8 +693,10 @@ def process_webqsp_RL():
                             parse_error_list.append(id)
                             pass
 
-    print('all_count', all_count)
     questions_count = len(process_questions)
+    print('all_count', all_count)
+    print('questions_count', questions_count)
+
     mean_reward_jaccard = total_reward_jaccard / questions_count
     mean_reward_recall = total_reward_recall / questions_count
     mean_reward_precision = total_reward_precision / questions_count
@@ -794,28 +813,51 @@ def getTrainingDatasetForPytorch_seq2seq_webqsp():
                     for temp_key, temp_value in dict.items():
                         action_string += temp_key + ' ( '
                         for token in temp_value:
-                            if '-' in token:
-                                token = '- ' + token.replace('-','')
-                            action_string += str(token) + ' '
+                            # if '-' in token:
+                            #     token = '- ' + token.replace('-','')
+                            if "?" not in token:
+                                action_string += str(token) + ' '
                         action_string += ') '
                 question_string = '<E> '
+
+
+                # entities = value['entity_mask']
+                # if len(entities) > 0:
+                #     for entity_key, entity_value in entities.items():
+                #         if str(entity_value) != '' and '?' not in str(entity_value):
+                #             question_string += str(entity_value) + ' '
+                # question_string += '</E> <R> '
+                # relations = value['relation_mask']
+                # if len(relations) > 0:
+                #     for relation_key, relation_value in relations.items():
+                #         if str(relation_value) != '' and '?' not in str(relation_value):
+                #             question_string += str(relation_value) + ' '
+                # question_string += '</R> <T> '
+                # types = value['type_mask']
+                # if len(types) > 0:
+                #     for type_key, type_value in types.items():
+                #         if str(type_value) != '' and '?' not in str(type_value):
+                #             question_string += str(type_value) + ' '
+
                 entities = value['entity_mask']
                 if len(entities) > 0:
                     for entity_key, entity_value in entities.items():
-                        if str(entity_value) != '':
+                        if str(entity_value) != '' and '?' not in str(entity_key):
                             question_string += str(entity_value) + ' '
                 question_string += '</E> <R> '
                 relations = value['relation_mask']
                 if len(relations) > 0:
                     for relation_key, relation_value in relations.items():
-                        if str(relation_value) !='':
+                        if str(relation_value) != '' and '?' not in str(relation_key):
                             question_string += str(relation_value) + ' '
                 question_string += '</R> <T> '
                 types = value['type_mask']
                 if len(types) > 0:
                     for type_key, type_value in types.items():
-                        if str(type_value) !='':
+                        if str(type_value) != '' and '?' not in str(type_key):
                             question_string += str(type_value) + ' '
+
+
                 question_string += '</T> '
                 question_token = str(value['question']).lower().replace('?', '')
                 question_token = question_token.replace(',', ' ')
@@ -1084,7 +1126,7 @@ if __name__ == "__main__":
     print("start process webqsp dataset")
     process_webqsp_RL()   # dataset to mask
 
-    getTrainingDatasetForPytorch_seq2seq_webqsp() # PT.train
+    # getTrainingDatasetForPytorch_seq2seq_webqsp() # PT.train
 
     # getTrainingDatasetForRlWebQSP()
     # getShareVocabularyForWebQSP() # share.question

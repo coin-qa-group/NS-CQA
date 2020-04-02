@@ -18,7 +18,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
 
     # # command line parameters for final test
-    # sys.argv = ['data_test.py', '-m=bleu_0.984_09.dat', '-p=final', '--n=rl_even']
+    # sys.argv = ['data_test.py', '-m=epoch_010_0.557_0.000.dat', '-p=final', '--n=rl_even']
     # command line parameters for final test (subset data)
     sys.argv = ['data_test_RL_webqsp.py', '-m=epoch_010_0.557_0.000.dat', '-p=rl', '--n=crossent_even', '--att=1', '--lstm=1']
 
@@ -116,16 +116,16 @@ if __name__ == "__main__":
             # log.info("%d REFER: %s", test_dataset_count, reference_string)
             refer_string_list.append(str(test_dataset_count) + ': ' + reference_string + '\n')
 
-        print(tokens)
-        print(references[0])
-        print(token_string)
-        print(reference_string)
-        print (len(tokens))
-        print (len(references[0]))
+        # print(tokens)
+        # print(references[0])
+        # print(token_string)
+        # print(reference_string)
+        # print (len(tokens))
+        # print (len(references[0]))
 
         bleu = utils.calc_bleu_many(tokens, references)
-        print(tokens)
-        print(references)
+        # print(tokens)
+        # print(references)
 
         # Show what the output action sequence is.
         action_tokens = []
