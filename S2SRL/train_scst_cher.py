@@ -17,7 +17,7 @@ import ptan
 
 SAVES_DIR = "../data/saves"
 
-BATCH_SIZE = 4
+BATCH_SIZE = 8
 LEARNING_RATE = 1e-4
 MAX_EPOCHS = 30
 MAX_TOKENS = 40
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%_att=0_withINT/pre_bleu_0.952_84.dat', '-n=rl_TR_1%_batch8_att=0_withINT_test', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=50', '-beam_width=10']
+    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%_att=0_withINT/pre_bleu_0.952_84.dat', '-n=rl_TR_1%_batch8_att=0_withINT', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=300', '-beam_width=10']
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. Empty string to train on full processDataset")
