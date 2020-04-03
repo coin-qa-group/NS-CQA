@@ -222,8 +222,7 @@ def transMask2ActionMAML(state, withint):
                 type_mask = load_dict[id]["type_mask"] if load_dict[id]["type_mask"] != None else {}
                 # todo: test
                 int_mask = load_dict[id]["int_mask"] if 'int_mask' in load_dict[id] else {}
-                response_entities = load_dict[id]["response_entities"].strip() if load_dict[id][
-                                                                                      "response_entities"] != None else ""
+                response_entities = load_dict[id]["response_entities"].strip() if load_dict[id]["response_entities"] != None else ""
                 response_entities = response_entities.strip().split("|")
                 orig_response = load_dict[id]["orig_response"].strip() if load_dict[id]["orig_response"] != None else ""
                 # Update(add) elements in dict.

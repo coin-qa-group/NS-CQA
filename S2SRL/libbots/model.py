@@ -1,5 +1,5 @@
 import numpy as np
-
+import operator
 import torch
 import torch.nn as nn
 import torch.nn.utils.rnn as rnn_utils
@@ -8,6 +8,8 @@ import torch.nn.functional as F
 from collections import OrderedDict
 from . import utils
 from . import attention
+from . import beam_search_node
+from queue import PriorityQueue
 
 HIDDEN_STATE_SIZE = 128
 EMBEDDING_DIM = 50
@@ -257,6 +259,104 @@ class PhraseModel(nn.Module):
             if stop_at_token is not None and action == stop_at_token:
                 break
         return torch.cat(res_logits), res_actions
+
+    def beam_decode(self, hid, begin_emb, seq_len, context, start_token, stop_at_token = None, beam_width = 10, topk = 5):
+        '''
+        :param target_tensor: target indexes tensor of shape [B, T] where B is the batch size and T is the maximum length of the output sentence
+        :param decoder_hidden: input tensor of shape [1, B, H] for start of the decoding
+        :param encoder_outputs: if you are using attention mechanism you can pass encoder outputs, [T, B, H] where T is the maximum length of input sentence
+        :return: decoded_batch
+        '''
+        endnodes = []
+        number_required = min((topk + 1), topk - len(endnodes))
+        # Start with the start of the sentence token: torch.LongTensor([[SOS_token]], device=device)
+        # starting node -  hidden vector, previous node, word id, logp, length, logits
+        node = beam_search_node.BeamSearchNode(hid, None, start_token, 0, 1, None)
+        nodes = PriorityQueue()
+
+        # start the queue
+        # The smaller the value is, the higher the priority of the node is.
+        nodes.put((-node.eval(), node))
+        qsize = 1
+
+        # start beam search
+        while True:
+            # give up when decoding takes too long
+            if qsize > 2000:
+                break
+
+            # fetch the best node
+            score, n = nodes.get()
+
+            action_v = n.wordid
+            # Get the embedding of the sampled output token.
+            decoder_input = self.emb(action_v)
+            decoder_hidden = n.h
+
+            # tensor.item(): if only one element is in the tensor, tensor.item() will return the value of the element.
+            if n.wordid.item() == stop_at_token or n.leng == seq_len and n.prevNode != None:
+                endnodes.append((score, n))
+                # if we reached maximum # of sentences required
+                if len(endnodes) >= number_required:
+                    break
+                else:
+                    continue
+
+            # decode for one step using decoder
+            # decoder_output, decoder_hidden = decoder(decoder_input, decoder_hidden, encoder_output)
+            out_logits, decoder_hidden = self.decode_one(decoder_hidden, decoder_input, context)
+            decoder_output = F.log_softmax(out_logits, dim=1)
+            # out_probs = out_probs_v.data.cpu().numpy()[0]
+
+            # PUT HERE REAL BEAM SEARCH OF TOP
+            log_prob, indexes = torch.topk(decoder_output, beam_width)
+            nextnodes = []
+
+            for new_k in range(beam_width):
+                decoded_t = indexes[0][new_k].view(-1)
+                log_p = log_prob[0][new_k].item()
+
+                # hidden vector, previous node, word id, logp, length
+                node = beam_search_node.BeamSearchNode(decoder_hidden, n, decoded_t, n.logp + log_p, n.leng + 1, out_logits)
+                score = -node.eval()
+                nextnodes.append((score, node))
+
+            # put them into queue
+            for i in range(len(nextnodes)):
+                score, nn = nextnodes[i]
+                nodes.put((score, nn))
+                # increase qsize
+            qsize += len(nextnodes) - 1
+
+        # choose nbest paths, back trace them
+        if len(endnodes) == 0:
+            endnodes = [nodes.get() for _ in range(topk)]
+
+        utterances = []
+        all_res_logits = []
+        # The sorted() function sorts the elements of a given iterable
+        # in a specific order (either ascending or descending).
+        # The syntax of sorted() is: sorted(iterable, key=None, reverse=False)
+        # This is a great way to sort a list of tuples on the second key:
+        # a = [ (1,'z'), (2, 'x'), (3, 'y') ]
+        # a.sort(key=operator.itemgetter(1))
+        # Or using lambda: a.sort(key=lambda x: x[1])
+        for score, n in sorted(endnodes, key=operator.itemgetter(0)):
+            utterance = []
+            res_logits = []
+
+            # back trace
+            while n.prevNode != None:
+                utterance.append(n.wordid.item())
+                res_logits.append(n.logits)
+                n = n.prevNode
+
+            utterance = utterance[::-1]
+            res_logits = res_logits[::-1]
+            utterances.append(utterance)
+            all_res_logits.append(torch.cat(res_logits))
+
+        return all_res_logits, utterances
 
     def pack_batch_no_out(self, batch, embeddings, device="cpu"):
         # Asserting statements is a convenient way to insert debugging assertions into a program.
