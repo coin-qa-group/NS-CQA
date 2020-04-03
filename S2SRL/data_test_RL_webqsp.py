@@ -137,7 +137,7 @@ if __name__ == "__main__":
         # Otherwise the adaptive reward is used.
 
 
-        true_reward_F1score = utils.calc_True_Reward_webqsp(action_tokens, targets, False)
+        true_reward_F1score = utils.calc_True_Reward_webqsp_novar(action_tokens, targets, False)
         print("true_reward_F1score", true_reward_F1score)
         sum_turereward_f1 += true_reward_F1score
 

@@ -27,9 +27,9 @@ class Interpreter():
 
     # e, r包含在图谱中
     def is_kb_consistent(self, e, r):
-        print("find", e, r)
+        # print("find", e, r)
         if e in self.freebase_kb and r in self.freebase_kb[e]:
-            print("find", e, r, self.freebase_kb[e][r])
+            # print("find", e, r, self.freebase_kb[e][r])
             return True
         else:
             return False
@@ -59,7 +59,7 @@ class Interpreter():
         tuple_set = None
         if entity in self.freebase_kb and relation in self.freebase_kb[entity]:
             tuple_set = self.freebase_kb[entity][relation]
-            print("A1 select", entity, relation, tuple_set)
+            # print("A1 select", entity, relation, tuple_set)
         return tuple_set, 0
 
     # 通过谓语宾语找主语
@@ -72,7 +72,7 @@ class Interpreter():
         for entity in self.freebase_kb:
             if relation in self.freebase_kb[entity] and type in self.freebase_kb[entity][relation]:
                 tuple_set.add(entity)
-                print("A1 select_e", entity, relation, tuple_set)
+                # print("A1 select_e", entity, relation, tuple_set)
         return tuple_set, 0
 
     # # 通过实体-关系 查找所有时间三元组

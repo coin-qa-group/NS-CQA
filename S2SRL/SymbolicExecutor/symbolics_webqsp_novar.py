@@ -57,12 +57,13 @@ class Symbolics_WebQSP_novar():
                 # A1: Select(e，r，t)
                 if ("A1" in symbolic):
                     try:
-                        e = symbolic[key][0].strip()
-                        r = symbolic[key][1].strip()
-                        t = ""
-                        temp_result = self.select(e, r, t)
-                        self.answer = temp_result
-                        self.temp_bool_dict = temp_result
+                        if len(symbolic[key]) == 2:
+                            e = symbolic[key][0].strip()
+                            r = symbolic[key][1].strip()
+                            t = ""
+                            temp_result = self.select(e, r, t)
+                            self.answer = temp_result
+                            self.temp_bool_dict = temp_result
                     except:
                         print('ERROR! The action is Select(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -70,12 +71,13 @@ class Symbolics_WebQSP_novar():
                 # A2: Select_e(e，r，t)
                 elif ("A2" in symbolic):
                     try:
-                        e = 'NONE'
-                        r = symbolic[key][0].strip()
-                        t = str(symbolic[key][1]).strip()
-                        temp_result = self.select_e(e, r, t)
-                        self.answer = temp_result
-                        self.temp_bool_dict = temp_result
+                        if len(symbolic[key]) == 2:
+                            e = 'NONE'
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            temp_result = self.select_e(e, r, t)
+                            self.answer = temp_result
+                            self.temp_bool_dict = temp_result
                     except:
                         print('ERROR! The action is Select_e(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -84,10 +86,12 @@ class Symbolics_WebQSP_novar():
                 elif ("A3" in symbolic):
                     try:
                         # ?x ns:a ns:b
-                        e = self.answer['ANSWER']
-                        r = symbolic[key][0].strip()
-                        t = str(symbolic[key][1]).strip()
-                        self.answer = self.filter_answer(e, r, t)
+                        if len(symbolic[key]) == 2:
+                            if 'ANSWER' in self.answer:
+                                e = self.answer['ANSWER']
+                                r = symbolic[key][0].strip()
+                                t = str(symbolic[key][1]).strip()
+                                self.answer = self.filter_answer(e, r, t)
                     except:
                         print('ERROR! The action is filter_answer(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -96,10 +100,12 @@ class Symbolics_WebQSP_novar():
                 elif ("A4" in symbolic):
                     try:
                         # self.answer.update(self.joint(e, r, t))
-                        e = self.answer['ANSWER']
-                        r = symbolic[key][0].strip()
-                        t = 'NONE'
-                        self.answer = self.joint(e, r, t)
+                        if len(symbolic[key]) == 1:
+                            if 'ANSWER' in self.answer:
+                                e = self.answer['ANSWER']
+                                r = symbolic[key][0].strip()
+                                t = 'NONE'
+                                self.answer = self.joint(e, r, t)
                     except:
                         print('ERROR! The action is joint_str(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -107,10 +113,11 @@ class Symbolics_WebQSP_novar():
                 # A5: Filter not equal
                 elif ("A5" in symbolic):
                     try:
-                        e = self.answer
-                        r = 'NONE'
-                        t = symbolic[key][0].strip()
-                        self.answer = self.filter_not_equal(e, r, t)
+                        if len(symbolic[key]) == 1:
+                            e = self.answer
+                            r = 'NONE'
+                            t = symbolic[key][0].strip()
+                            self.answer = self.filter_not_equal(e, r, t)
                     except:
                         print('ERROR! The action is filter_not_equal(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -126,10 +133,11 @@ class Symbolics_WebQSP_novar():
                 # A7: order_value_limit: order e by value and get top n
                 elif ("A7" in symbolic):
                     try:
-                        e = self.answer
-                        r = symbolic[key][0].strip()
-                        t = str(symbolic[key][1]).strip()
-                        self.answer = self.order_value_limit(e, r, t, False)
+                        if len(symbolic[key]) == 2:
+                            e = self.answer
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            self.answer = self.order_value_limit(e, r, t, False)
                     except:
                         print('ERROR! The action is order_value_limit(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -137,10 +145,11 @@ class Symbolics_WebQSP_novar():
                 # A7: order_value_desc_limit: order desc e by value and get top n
                 elif ("A8" in symbolic):
                     try:
-                        e = self.answer
-                        r = symbolic[key][0].strip()
-                        t = str(symbolic[key][1]).strip()
-                        self.answer = self.order_value_limit(e, r, t, True)
+                        if len(symbolic[key]) == 2:
+                            e = self.answer
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            self.answer = self.order_value_limit(e, r, t, True)
                     except:
                         print('ERROR! The action is order_value_desc_limit(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -308,7 +317,7 @@ class Symbolics_WebQSP_novar():
 
     # A5
     def filter_not_equal(self, e, r, t):
-        intermediate_result = {}
+        intermediate_result = {'ANSWER': []}
         if t == "":
             return {}
         elif not isinstance(self.answer, dict):
@@ -319,11 +328,12 @@ class Symbolics_WebQSP_novar():
                 # if e in list(self.answer['ANSWER']):
                 answer_list = []
                 # print(t)
-                for answer_item in list(self.answer['ANSWER']):
-                    if (answer_item != t):
-                        answer_list.append(answer_item)
-                # intermediate_result = {e: answer_list}
-                intermediate_result = {'ANSWER': answer_list}
+                if 'ANSWER' in self.answer:
+                    for answer_item in list(self.answer['ANSWER']):
+                        if (answer_item != t):
+                            answer_list.append(answer_item)
+                    # intermediate_result = {e: answer_list}
+                    intermediate_result = {'ANSWER': answer_list}
 
             except:
                 print("ERROR for command: filter_not_equal(%s,%s,%s)" % (e, r, t))

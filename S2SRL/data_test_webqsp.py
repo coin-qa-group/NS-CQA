@@ -18,7 +18,7 @@ if __name__ == "__main__":
     # # command line parameters for final test
     # sys.argv = ['data_test.py', '-m=bleu_0.984_09.dat', '-p=final', '--n=rl_even']
     # command line parameters for final test (subset data)
-    sys.argv = ['data_test.py', '-m=pre_bleu_0.944_31.dat', '-p=pt', '--n=crossent_even', '--att=1', '--lstm=1']
+    sys.argv = ['data_test.py', '-m=pre_bleu_0.981_19.dat', '-p=pt', '--n=crossent_webqsp', '--att=1', '--lstm=1']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True,
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     net = model.PhraseModel(emb_size=model.EMBEDDING_DIM, dict_size=len(emb_dict), hid_size=model.HIDDEN_STATE_SIZE,
                             LSTM_FLAG=args.lstm, ATT_FLAG=args.att)
     net = net.cuda()
-    model_path = '../data/saves/webqsp/test032201/crossent_webqsp/' + str(args.model)
+    model_path = '../data/saves/webqsp/crossent_webqsp/' + str(args.model)
     net.load_state_dict((torch.load(model_path)))
     end_token = emb_dict[data.END_TOKEN]
 
@@ -112,12 +112,12 @@ if __name__ == "__main__":
             # log.info("%d REFER: %s", test_dataset_count, reference_string)
             refer_string_list.append(str(test_dataset_count) + ': ' + reference_string + '\n')
 
-        print(tokens)
-        print(references[0])
-        print(token_string)
-        print(reference_string)
-        print (len(tokens))
-        print (len(references[0]))
+        # print(tokens)
+        # print(references[0])
+        # print(token_string)
+        # print(reference_string)
+        # print (len(tokens))
+        # print (len(references[0]))
         if tokens == references[0]:
             flag = True
 

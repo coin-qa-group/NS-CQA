@@ -15,7 +15,7 @@ import torch.nn.functional as F
 
 SAVES_DIR = "../data/saves/webqsp"
 
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
 MAX_EPOCHES = 20
 MAX_TOKENS = 40
