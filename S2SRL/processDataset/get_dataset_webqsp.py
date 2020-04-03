@@ -619,9 +619,12 @@ def process_webqsp_RL():
                                         t_mask = ""
                                         for k, v in srt.items():
                                             a_mask = k
-                                            e_mask_key = v[0]
-                                            r_mask_key = v[1]
-                                            t_mask_key = v[2]
+                                            if len(v) > 0:
+                                                e_mask_key = v[0]
+                                            if len(v) > 1:
+                                                r_mask_key = v[1]
+                                            # t_mask_key = v[2]
+                                            t_mask_key = ""
                                             e_mask = entity_mask[e_mask_key] if e_mask_key != "" else ""
                                             r_mask = relation_mask[r_mask_key] if r_mask_key != "" else ""
                                             t_mask = type_mask[t_mask_key] if t_mask_key != "" and t_mask_key in type_mask else ""
@@ -631,6 +634,7 @@ def process_webqsp_RL():
                                             masklist.append(t_mask)
                                             mask_set = {a_mask: masklist}
                                             mask_action_sequence_list.append(mask_set)
+
                                     if id != "" and question != "" and seq != "":
                                         question_string = '<E> '
                                         if len(entity_mask) > 0:
