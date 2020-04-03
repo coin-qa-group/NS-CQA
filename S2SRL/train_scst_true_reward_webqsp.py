@@ -60,7 +60,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_true_reward_webqsp.py', '--cuda', '-l=../data/saves/webqsp/crossent_webqsp/pre_bleu_0.981_19.dat', '-n=rl03201645_att=1', '-s=5', '-a=0', '--att=1', '--lstm=1']
+    sys.argv = ['train_scst_true_reward_webqsp.py', '--cuda', '-l=../data/saves/webqsp/crossent_webqsp/pre_bleu_0.981_19.dat', '-n=rl_att=1', '-s=5', '-a=0', '--att=1', '--lstm=1']
 
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
