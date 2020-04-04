@@ -235,7 +235,7 @@ if __name__ == "__main__":
                         log.info("orig_response: %s", orig_response)
                         log.info("Argmax: %s, reward=%.4f", utils.untokenize(data.decode_words(actions, rev_emb_dict)), argmax_reward)
 
-                    sample_logits_list, action_sequence_list = net.beam_decode(hid=item_enc, begin_emb=beg_embedding, seq_len=data.MAX_TOKENS, context=context[idx], start_token=beg_token, stop_at_token=end_token, beam_width=10, topk=args.samples)
+                    sample_logits_list, action_sequence_list = net.beam_decode(hid=item_enc, seq_len=data.MAX_TOKENS, context=context[idx], start_token=beg_token, stop_at_token=end_token, beam_width=args.beam_width, topk=args.samples)
 
                     # action_memory = list()
                     for sample_index in range(args.samples):
