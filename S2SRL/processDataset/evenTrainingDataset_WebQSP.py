@@ -32,16 +32,16 @@ special_characters = {'(',')','-','|','&'}
 # Get the training processDataset and test processDataset for seq2seq (one question to one action ).
 def getTrainingDatasetForPytorch(percentage):
 
-    path = '../../data/webqsp_data/RL_mask_even_' + percentage + '/PT_train.question'
+    path = '../../data/webquestionssp/RL_mask_even_' + percentage + '/PT_train.question'
     fwTrainQ = open(path, 'w', encoding="UTF-8")
-    path = '../../data/webqsp_data/RL_mask_even_' + percentage + '/PT_train.action'
+    path = '../../data/webquestionssp/RL_mask_even_' + percentage + '/PT_train.action'
     fwTrainA = open(path, 'w', encoding="UTF-8")
-    path = '../../data/webqsp_data/RL_mask_even_' + percentage + '/PT_test.question'
+    path = '../../data/webquestionssp/RL_mask_even_' + percentage + '/PT_test.question'
     fwTestQ = open(path, 'w', encoding="UTF-8")
-    path = '../../data/webqsp_data/RL_mask_even_' + percentage + '/PT_test.action'
+    path = '../../data/webquestionssp/RL_mask_even_' + percentage + '/PT_test.action'
     fwTestA = open(path, 'w', encoding="UTF-8")
-    # with open("../../data/webqsp_data/WebQSP_ANNOTATIONS_test.json", 'r', encoding="UTF-8") as load_f:
-    with open("../../data/webqsp_data/WebQSP_ANNOTATIONS_subtest.json", 'r', encoding="UTF-8") as load_f:
+    # with open("../../data/webquestionssp/WebQSP_ANNOTATIONS_test.json", 'r', encoding="UTF-8") as load_f:
+    with open("../../data/webquestionssp/WebQSP_ANNOTATIONS_subtest.json", 'r', encoding="UTF-8") as load_f:
         train_action_string_list, test_action_string_list, train_question_string_list, test_question_string_list = list(), list(), list(), list()
         dict_list = json.load(load_f)
         # random.seed(SEED)
@@ -317,7 +317,7 @@ def getTrainingDatasetForRlWithTrueReward(percentage, SIZE):
 # Vocabulary and FINAL_test files are same as the share.question and FINAL-related files used in mask processDataset.
 if __name__ == "__main__":
     # percentage represents how much samples (0.2% ~ 1.2%) are drawn from the whole training dataset.
-    percentage = '1.0%'
+    percentage = '100.0%'
     # size = 1479
     size = 64
     getTrainingDatasetForPytorch(percentage)

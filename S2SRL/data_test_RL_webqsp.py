@@ -10,17 +10,17 @@ import torch
 
 log = logging.getLogger("data_test")
 
-TEST_QUESTION_ANSWER_PATH = '../data/webqsp_data/RL_mask_even/webqsp_question/RL_test_TR_sub_webqsp_infchain_1.json'
-DIC_PATH = '../data/webqsp_data/share.question'
+TEST_QUESTION_ANSWER_PATH = '../data/webqsp_data/final_webqsp_test_RL.json'
+DIC_PATH = '../data/webqsp_data/share.webqsp.question'
 MAX_TOKENS = 40
 
 if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
 
     # # command line parameters for final test
-    # sys.argv = ['data_test.py', '-m=bleu_0.984_09.dat', '-p=final', '--n=rl_even']
+    # sys.argv = ['data_test.py', '-m=epoch_010_0.557_0.000.dat', '-p=final', '--n=rl_even']
     # command line parameters for final test (subset data)
-    sys.argv = ['data_test_RL_webqsp.py', '-m=truereward_0.800_00.dat', '-p=rl', '--n=crossent_even', '--att=1', '--lstm=1']
+    sys.argv = ['data_test_RL_webqsp.py', '-m=epoch_010_0.557_0.000.dat', '-p=rl', '--n=crossent_even', '--att=1', '--lstm=1']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True,
@@ -67,7 +67,7 @@ if __name__ == "__main__":
                             LSTM_FLAG=args.lstm, ATT_FLAG=args.att)
     net = net.cuda()
     # model_path = '../data/saves/rl_even_adaptive_1%/' + str(args.name) + '/' + str(args.model)
-    model_path = '../data/saves/webqsp/crossent_even_1%_att=1/' + str(args.name) + '/' + str(args.model)
+    model_path = '../data/saves/webqsp/crossent_even/' + str(args.name) + '/' + str(args.model)
     net.load_state_dict((torch.load(model_path)))
     end_token = emb_dict[data.END_TOKEN]
 
@@ -116,16 +116,16 @@ if __name__ == "__main__":
             # log.info("%d REFER: %s", test_dataset_count, reference_string)
             refer_string_list.append(str(test_dataset_count) + ': ' + reference_string + '\n')
 
-        print(tokens)
-        print(references[0])
-        print(token_string)
-        print(reference_string)
-        print (len(tokens))
-        print (len(references[0]))
+        # print(tokens)
+        # print(references[0])
+        # print(token_string)
+        # print(reference_string)
+        # print (len(tokens))
+        # print (len(references[0]))
 
         bleu = utils.calc_bleu_many(tokens, references)
-        print(tokens)
-        print(references)
+        # print(tokens)
+        # print(references)
 
         # Show what the output action sequence is.
         action_tokens = []
@@ -137,7 +137,7 @@ if __name__ == "__main__":
         # Otherwise the adaptive reward is used.
 
 
-        true_reward_F1score = utils.calc_True_Reward_webqsp(action_tokens, targets, False)
+        true_reward_F1score = utils.calc_True_Reward_webqsp_novar(action_tokens, targets, False)
         print("true_reward_F1score", true_reward_F1score)
         sum_turereward_f1 += true_reward_F1score
 

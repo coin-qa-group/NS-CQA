@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import time
 import ptan
 
-SAVES_DIR = "../data/saves/webqsp_rl_infchain_1"
+SAVES_DIR = "../data/saves/webqsp_rl_03201645"
 
 BATCH_SIZE = 16
 LEARNING_RATE = 1e-4
@@ -24,9 +24,8 @@ MAX_TOKENS = 40
 TRAIN_RATIO = 0.985
 GAMMA = 0.05
 
-DIC_PATH = '../data/webqsp_data/share.question'
-# TRAIN_QUESTION_ANSWER_PATH = '../data/webqsp_data/RL_mask_even/RL_train_TR_sub_webqsp.json'
-TRAIN_QUESTION_ANSWER_PATH = '../data/webqsp_data/RL_mask_even/RL_train_TR_sub_webqsp_infchain_1.json'
+DIC_PATH = '../data/webqsp_data/share.webqsp.question'
+TRAIN_QUESTION_ANSWER_PATH = '../data/webqsp_data/final_webqsp_train_RL.json'
 log = logging.getLogger("train")
 
 
@@ -50,7 +49,7 @@ def run_test(test_data, net, rev_emb_dict, end_token, device="cuda"):
             if temp_idx in rev_emb_dict and rev_emb_dict.get(temp_idx) != '#END':
                 action_tokens.append(str(rev_emb_dict.get(temp_idx)).upper())
         # Using 0-1 reward to compute accuracy.
-        argmax_reward_sum += float(utils.calc_True_Reward_webqsp(action_tokens, p2, False))
+        argmax_reward_sum += float(utils.calc_True_Reward_webqsp_novar(action_tokens, p2, False))
         argmax_reward_count += 1
     if argmax_reward_count == 0:
         return 0.0
@@ -61,7 +60,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/webqsp/crossent_even_1%_att=1/pre_bleu_0.938_07.dat', '-n=rl_even_adaptive_1%_att=1', '-s=5', '-a=0', '--att=1', '--lstm=1']
+    sys.argv = ['train_scst_true_reward_webqsp.py', '--cuda', '-l=../data/saves/webqsp/crossent_webqsp/pre_bleu_0.981_19.dat', '-n=rl_att=1', '-s=5', '-a=0', '--att=1', '--lstm=1']
 
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
@@ -186,8 +185,7 @@ if __name__ == "__main__":
                     # print (input_tokens)
                     # Get IDs of reference sequences' tokens corresponding to idx-th input sequence in batch.
                     qa_info = output_batch[idx]
-                    print("%s is training..." % (qa_info['qid']))
-                    # print (qa_info['qid'])
+                    # print("%s is training..." % (qa_info['qid']))
                     # # Get the (two-layer) hidden state of encoder of idx-th input sequence in batch.
                     item_enc = net.get_encoded_item(enc, idx)
                     # # 'r_argmax' is the list of out_logits list and 'actions' is the list of output tokens.
@@ -201,9 +199,9 @@ if __name__ == "__main__":
                     # Get the highest BLEU score as baseline used in self-critic.
                     # If the last parameter is false, it means that the 0-1 reward is used to calculate the accuracy.
                     # Otherwise the adaptive reward is used.
-                    argmax_reward = utils.calc_True_Reward_webqsp(action_tokens, qa_info, args.adaptive)
-                    print("action_tokens", action_tokens)
-                    print("qa_info", qa_info)
+                    argmax_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
+                    # print("action_tokens", action_tokens)
+                    # print("qa_info", qa_info)
                     true_reward_argmax.append(argmax_reward)
 
                     # # In this case, the BLEU score is so high that it is not needed to train such case with RL.
@@ -249,7 +247,7 @@ if __name__ == "__main__":
                                 action_tokens.append(str(rev_emb_dict.get(temp_idx)).upper())
                         # If the last parameter is false, it means that the 0-1 reward is used to calculate the accuracy.
                         # Otherwise the adaptive reward is used.
-                        sample_reward = utils.calc_True_Reward_webqsp(action_tokens, qa_info, args.adaptive)
+                        sample_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
 
                         if not dial_shown:
                             log.info("Sample: %s, reward=%.4f", utils.untokenize(data.decode_words(actions, rev_emb_dict)),
@@ -272,7 +270,7 @@ if __name__ == "__main__":
                         net_advantages.extend([sample_reward - argmax_reward] * len(actions))
                         true_reward_sample.append(sample_reward)
                     dial_shown = True
-                    print("Epoch %d, Batch %d, Sample %d: %s is trained!" %(epoch, batch_count, idx, qa_info['qid']))
+                    # print("Epoch %d, Batch %d, Sample %d: %s is trained!" %(epoch, batch_count, idx, qa_info['qid']))
 
                 if not net_policies:
                     continue

@@ -10,15 +10,17 @@ import torch
 
 log = logging.getLogger("data_test")
 
+TEST_QUESTION_ANSWER_PATH = '../data/webqsp_data/final_webqsp_test_RL.json'
 DIC_PATH = '../data/webqsp_data/share.webqsp.question'
+MAX_TOKENS = 40
 
 if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
 
     # # command line parameters for final test
-    # sys.argv = ['data_test.py', '-m=bleu_0.984_09.dat', '-p=final', '--n=rl_even']
+    # sys.argv = ['data_test.py', '-m=epoch_010_0.557_0.000.dat', '-p=final', '--n=rl_even']
     # command line parameters for final test (subset data)
-    sys.argv = ['data_test.py', '-m=pre_bleu_0.981_19.dat', '-p=pt', '--n=crossent_webqsp', '--att=1', '--lstm=1']
+    sys.argv = ['data_test_RL_webqsp.py', '-m=epoch_001_0.863_0.905.dat', '-p=rl', '--n=crossent_webqsp', '--att=1', '--lstm=1']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True,
@@ -41,24 +43,22 @@ if __name__ == "__main__":
     fwRefer = open(REFER_PATH, 'w', encoding="UTF-8")
 
     phrase_pairs, emb_dict = [], list()
-    # TEST_QUESTION_PATH = '../data/webqsp_data/mask_test/' + str(args.pred).upper() + '_test.question'
-    # log.info("Open: %s", '../data/webqsp_data/mask_test/' + str(args.pred).upper() + '_test.question')
-    # TEST_ACTION_PATH = '../data/webqsp_data/mask_test/' + str(args.pred).upper() + '_test.action'
-    # log.info("Open: %s", '../data/webqsp_data/mask_test/' + str(args.pred).upper() + '_test.action')
+    TEST_QUESTION_PATH = '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.question'
+    log.info("Open: %s", '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.question')
+    TEST_ACTION_PATH = '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.action'
+    log.info("Open: %s", '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.action')
+    # if args.pred == 'pt' or 'final' in args.pred:
+    #     phrase_pairs, emb_dict = data.load_data_from_existing_data(TEST_QUESTION_PATH, TEST_ACTION_PATH, DIC_PATH)
+    # elif args.pred == 'rl':
+    #     phrase_pairs, emb_dict = data.load_RL_data(TEST_QUESTION_PATH, TEST_ACTION_PATH, DIC_PATH)
+    phrase_pairs, emb_dict = data.load_RL_data_TR(TEST_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS)
 
-    TEST_QUESTION_PATH = '../data/webqsp_data/mask/' + 'PT_test.question'
-    log.info("Open: %s", '../data/webqsp_data/mask/' + 'PT_test.question')
-    TEST_ACTION_PATH = '../data/webqsp_data/mask/' + 'PT_test.action'
-    log.info("Open: %s", '../data/webqsp_data/mask/' + 'PT_test.action')
-
-    if args.pred == 'pt' or 'final' in args.pred:
-        phrase_pairs, emb_dict = data.load_data_from_existing_data(TEST_QUESTION_PATH, TEST_ACTION_PATH, DIC_PATH)
-    elif args.pred == 'rl':
-        phrase_pairs, emb_dict = data.load_RL_data(TEST_QUESTION_PATH, TEST_ACTION_PATH, DIC_PATH)
     log.info("Obtained %d phrase pairs with %d uniq words", len(phrase_pairs), len(emb_dict))
-    train_data = data.encode_phrase_pairs(phrase_pairs, emb_dict)
+    # train_data = data.encode_phrase_pairs(phrase_pairs, emb_dict)
+    train_data = data.encode_phrase_pairs_RLTR(phrase_pairs, emb_dict)
     if args.pred == 'rl':
-        train_data = data.group_train_data(train_data)
+        # train_data = data.group_train_data(train_data)
+        train_data = data.group_train_data_RLTR(train_data)
     else:
         train_data = data.group_train_data_one_to_one(train_data)
     rev_emb_dict = {idx: word for word, idx in emb_dict.items()}
@@ -66,15 +66,19 @@ if __name__ == "__main__":
     net = model.PhraseModel(emb_size=model.EMBEDDING_DIM, dict_size=len(emb_dict), hid_size=model.HIDDEN_STATE_SIZE,
                             LSTM_FLAG=args.lstm, ATT_FLAG=args.att)
     net = net.cuda()
-    model_path = '../data/saves/webqsp/crossent_webqsp/' + str(args.model)
+    # model_path = '../data/saves/rl_even_adaptive_1%/' + str(args.name) + '/' + str(args.model)
+    model_path = '../data/saves/webqsp/' + str(args.name) + '/' + str(args.model)
     net.load_state_dict((torch.load(model_path)))
     end_token = emb_dict[data.END_TOKEN]
 
-    seq_count = 1
+    seq_count = 0
     correct_count = 0
     sum_bleu = 0.0
 
     sum_f1 = 0.0
+
+    sum_turereward_f1 = 0.0
+
 
     test_dataset_count = 0
     token_string_list = list()
@@ -107,34 +111,46 @@ if __name__ == "__main__":
                 if token in rev_emb_dict and rev_emb_dict.get(token)!= '#END':
                     reference_string += str(rev_emb_dict.get(token)).upper() + ' '
             reference_string = reference_string.strip()
-            # if token_string == reference_string:
-            #     flag = True
+            if token_string == reference_string:
+                flag = True
             # log.info("%d REFER: %s", test_dataset_count, reference_string)
             refer_string_list.append(str(test_dataset_count) + ': ' + reference_string + '\n')
 
-        # print(tokens)
-        # print(references[0])
-        # print(token_string)
-        # print(reference_string)
-        # print (len(tokens))
-        # print (len(references[0]))
-        if tokens == references[0]:
-            flag = True
+        print(tokens)
+        print(references[0])
+        print(token_string)
+        print(reference_string)
+        print (len(tokens))
+        print (len(references[0]))
 
         bleu = utils.calc_bleu_many(tokens, references)
+        print(tokens)
+        print(references)
+
+        # Show what the output action sequence is.
+        action_tokens = []
+        for temp_idx in tokens:
+            if temp_idx in rev_emb_dict and rev_emb_dict.get(temp_idx) != '#END':
+                action_tokens.append(str(rev_emb_dict.get(temp_idx)).upper())
+        # Get the highest BLEU score as baseline used in self-critic.
+        # If the last parameter is false, it means that the 0-1 reward is used to calculate the accuracy.
+        # Otherwise the adaptive reward is used.
 
 
-        intersec = set(tokens).intersection(set(references[0]))
+        true_reward_F1score = utils.calc_True_Reward_webqsp_novar(action_tokens, targets, False)
+        print("true_reward_F1score", true_reward_F1score)
+        sum_turereward_f1 += true_reward_F1score
 
-        if len(references) == 0:
-            prec = 0.0
-        else:
-            prec = float(len(intersec)) / float(len(references[0]))
-        rec = float(len(intersec)) / float(len(references[0]))
-        if prec == 0 and rec == 0:
-            f1 = 0
-        else:
-            sum_f1 += (2.0 * prec * rec) / (prec + rec)
+        # intersec = set(tokens).intersection(set(references[0]))
+        # if len(references) == 0:
+        #     prec = 0.0
+        # else:
+        #     prec = float(len(intersec)) / float(len(references[0]))
+        # rec = float(len(intersec)) / float(len(references[0]))
+        # if prec == 0 and rec == 0:
+        #     f1 = 0
+        # else:
+        #     sum_f1 += (2.0 * prec * rec) / (prec + rec)
 
         if flag == True:
             correct_count += 1
@@ -142,7 +158,7 @@ if __name__ == "__main__":
         sum_bleu += bleu
         seq_count += 1
 
-    log.info("all ", test_dataset_count, "right ", correct_count)
+    log.info("%d tested, average F1 score = = %.4f", len(train_data), sum_turereward_f1 / len(train_data))
 
     log.info("Obtained %d phrase pairs with %d uniq words", len(phrase_pairs), len(emb_dict))
     log.info("Processed %d phrases, mean BLEU = %.4f", seq_count, sum_bleu / seq_count)
