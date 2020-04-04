@@ -10,6 +10,8 @@ import torch
 log = logging.getLogger("data_test")
 
 DIC_PATH = '../data/auto_QA_data/share.question'
+DIC_PATH_INT = '../data/auto_QA_data/share_INT.question'
+# DIC_PATH_INT = '../data/auto_QA_data/share_944K_INT.question'
 
 if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
@@ -17,7 +19,7 @@ if __name__ == "__main__":
     # # command line parameters for final test
     # sys.argv = ['data_test.py', '-m=bleu_0.984_09.dat', '-p=final', '--n=rl_even']
     # command line parameters for final test (subset data)
-    sys.argv = ['data_test.py', '-m=truereward_0.729_26.dat', '-p=sample_final', '--n=rl_even_TR_1.4%_batch8', '--att=0', '--lstm=1']
+    sys.argv = ['data_test.py', '-m=epoch_040_0.997_0.945.dat', '-p=sample_final_int', '--n=crossent_even_1%_att=0_withINT', '--att=0', '--lstm=1', '--int', '-w2v=50']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True,
     #                     help="Category to use for training. Empty string to train on full processDataset")
@@ -31,6 +33,9 @@ if __name__ == "__main__":
                         help="Using attention mechanism in seq2seq")
     parser.add_argument("--lstm", type=lambda x: (str(x).lower() in ['true', '1', 'yes']),
                         help="Using LSTM mechanism in seq2seq")
+    parser.add_argument('--int', action='store_true', help='training model with INT mask information')
+    # The dimension of the word embeddings.
+    parser.add_argument("-w2v", "--word_dimension", type=int, default=50, help="The dimension of the word embeddings")
     args = parser.parse_args()
 
     PREDICT_PATH = '../data/saves/' + str(args.name) + '/' + str(args.pred) + '_predict.actions'
@@ -43,10 +48,16 @@ if __name__ == "__main__":
     log.info("Open: %s", '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.question')
     TEST_ACTION_PATH = '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.action'
     log.info("Open: %s", '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.action')
+    if args.int:
+        log.info("Test with INT.")
+        dic_path = DIC_PATH_INT
+    else:
+        log.info("Test without INT.")
+        dic_path = DIC_PATH
     if args.pred == 'pt' or 'final' in args.pred:
-        phrase_pairs, emb_dict = data.load_data_from_existing_data(TEST_QUESTION_PATH, TEST_ACTION_PATH, DIC_PATH)
+        phrase_pairs, emb_dict = data.load_data_from_existing_data(TEST_QUESTION_PATH, TEST_ACTION_PATH, dic_path)
     elif args.pred == 'rl':
-        phrase_pairs, emb_dict = data.load_RL_data(TEST_QUESTION_PATH, TEST_ACTION_PATH, DIC_PATH)
+        phrase_pairs, emb_dict = data.load_RL_data(TEST_QUESTION_PATH, TEST_ACTION_PATH, dic_path)
     log.info("Obtained %d phrase pairs with %d uniq words", len(phrase_pairs), len(emb_dict))
     train_data = data.encode_phrase_pairs(phrase_pairs, emb_dict)
     if args.pred == 'rl':
@@ -55,7 +66,7 @@ if __name__ == "__main__":
         train_data = data.group_train_data_one_to_one(train_data)
     rev_emb_dict = {idx: word for word, idx in emb_dict.items()}
 
-    net = model.PhraseModel(emb_size=model.EMBEDDING_DIM, dict_size=len(emb_dict), hid_size=model.HIDDEN_STATE_SIZE,
+    net = model.PhraseModel(emb_size=args.word_dimension, dict_size=len(emb_dict), hid_size=model.HIDDEN_STATE_SIZE,
                             LSTM_FLAG=args.lstm, ATT_FLAG=args.att)
     net = net.cuda()
     model_path = '../data/saves/' + str(args.name) + '/' + str(args.model)

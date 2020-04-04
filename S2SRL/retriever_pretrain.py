@@ -265,6 +265,7 @@ def retriever_training(epoches, RETRIEVER_EMBED_FLAG=True, query_embedding=True)
             logsoftmax_output = logsoftmax_output.cuda()
             positive_document_list = [k-value['document_range'][0] for k in value['positive_document_list']]
             possitive_logsoftmax_output = torch.stack([logsoftmax_output[k] for k in positive_document_list])
+            # todo: sum or mean?
             loss_policy_v = -possitive_logsoftmax_output.mean()
             loss_policy_v = loss_policy_v.cuda()
             loss_policy_v.backward()

@@ -151,14 +151,13 @@ def duplicate(s1,s2):
     compare = lambda a,b: len(a)==len(b) and len(a)==sum([1 for i,j in zip(a,b) if i==j])
     return compare(s1, s2)
 
-if __name__ == "__main__":
-    test()
+def test1():
     s = '15'
     if s.isdigit():
         print(int(s))
-    for i in range(2-1):
-        print ('hua')
-    a = [float(i/2) for i in range(4)]
+    for i in range(2 - 1):
+        print('hua')
+    a = [float(i / 2) for i in range(4)]
     print(np.mean(a))
     print(float(np.mean(a)))
 
@@ -171,30 +170,30 @@ if __name__ == "__main__":
         predicted_answer = temp
     print(predicted_answer)
     diff_value = set()
-    temp_set = {1,2,3}
+    temp_set = {1, 2, 3}
     diff_value = diff_value - temp_set
     for temp in diff_value:
         print(temp)
-    a = {1,2,3}
-    if(type(a)== type(set())):
+    a = {1, 2, 3}
+    if (type(a) == type(set())):
         print(len(a))
     print(type({}))
     print(type(set()))
     answer = 1
     if type(answer) == bool: print(answer)
-    s1 = [17,11,47,23,5]
-    s2 = [11,47,23,5,17]
-    print(duplicate(s1,s2))
+    s1 = [17, 11, 47, 23, 5]
+    s2 = [11, 47, 23, 5, 17]
+    print(duplicate(s1, s2))
 
     d = {'a': 1, 'b': 2, 'c': 3, 'd': 4}
     for k in list(d):
         print(k)
 
-    list2 = [0,1]
-    list1 = [1,1]
-    similarity = 1.0 - float(levenshtein(list1,list2))/float(max(len(list1),len(list2)))
-    print(max(len(list1),len(list2)))
-    print(levenshtein(list1,list2))
+    list2 = [0, 1]
+    list1 = [1, 1]
+    similarity = 1.0 - float(levenshtein(list1, list2)) / float(max(len(list1), len(list2)))
+    print(max(len(list1), len(list2)))
+    print(levenshtein(list1, list2))
     print(similarity)
 
     lengths = np.array([50] * 5)
@@ -223,6 +222,68 @@ if __name__ == "__main__":
            'QuantitativeReasoning(All)': 'Quantitative Reasoning (All)_',
            'ComparativeReasoning(All)': 'Comparative Reasoning (All)_'}
     print(map['LogicalReasoning(All)'])
+
+def test_digits():
+    s_list = ['4|one', '2 and 4 ,|2 and 4|4 ,|4', '12-', '-1-', '-5-|1-', 'million', '1885-1900', '+1', '3|3 ,', 'seven', 'nine', '24|1',
+              ' 17 ,|, 1775|17|17 , 1775', ' , 1922-1997', ' , 1987', ' 1.1', ' 7', '2005']
+    for s in s_list:
+        if s.strip().isdigit():
+            print(str(type(eval(s))) + ': ' + str(int(s)))
+        else:
+            print('Not digits: %s' % s.strip())
+
+def dict_test():
+    lines = ['aaa', '', 'bbb', '1', 'ccc', '22']
+    q_ints = {}
+    count = 0
+    while count < len(lines):
+        q_utterance = lines[count]
+        q_ints[q_utterance] = ''
+        count += 1
+        if count < len(lines):
+            int_tokens = lines[count]
+            if int_tokens != '' and int_tokens.strip().isdigit():
+                q_ints[q_utterance] = str(int(int_tokens))
+        count += 1
+    return q_ints
+
+def testChunk():
+    a = torch.ones([4, 8])
+    b = torch.zeros([4, 8])
+    c = torch.cat([a, b], 0)  # 第0个维度stack
+    d1, d2, d3, d4 = torch.chunk(c, 4, 1)
+    print("1--------------------------------")
+    print('a.size: ', end='')
+    print(a.size())
+    print(a)
+    print('b.size: ', end='')
+    print(b.size())
+    print(b)
+    print('c.size: ', end='')
+    print(c.size())
+    print(c)
+    print('d1.size: ', end='')
+    print(d1.size())
+    print(d1)
+    print('d2.size: ', end='')
+    print(d2.size())
+    print(d2)
+    print('d3.size: ', end='')
+    print(d3.size())
+    print(d3)
+    print('d4.size: ', end='')
+    print(d4.size())
+    print(d4)
+
+if __name__ == "__main__":
+    # test()
+    # test1()
+    # test_digits()
+    # print(dict_test())
+    testChunk()
+
+
+
 
 
 
