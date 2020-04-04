@@ -144,7 +144,7 @@ class Symbolics_WebQSP_novar():
                         print('ERROR! The action is order_value_limit(%s,%s,%s).' % (e, r, t))
                     finally:
                         self.print_answer()
-                # A7: order_value_desc_limit: order desc e by value and get top n
+                # A8: order_value_desc_limit: order desc e by value and get top n
                 elif ("A8" in symbolic):
                     try:
                         if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
@@ -161,6 +161,30 @@ class Symbolics_WebQSP_novar():
                     try:
                         # in this way not use
                         self.answer.update(self.union(e, r, t))
+                    except:
+                        print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
+                    finally:
+                        self.print_answer()
+                # A10: date_less_or_equal(r，t)
+                elif ("A10" in symbolic):
+                    try:
+                        if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            self.answer = self.date_less_or_equal(e, r, t)
+                    except:
+                        print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
+                    finally:
+                        self.print_answer()
+                # A11: date_greater_or_equal(r，t)
+                elif ("A11" in symbolic):
+                    try:
+                        if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            self.answer = self.date_greater_or_equal(e, r, t)
                     except:
                         print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -214,8 +238,10 @@ class Symbolics_WebQSP_novar():
                 jsonpost = json.dumps(json_pack)
                 # result_content = requests.post(post_url,json=json_pack)
                 # print(result_content)
-                content, content_result = requests.post(post_url, json=jsonpost).json()['content']
-                if content is not None and content_result == 0:
+                x = requests.post(post_url, json=jsonpost)
+                xx = x.json()
+                content, result = xx['content']
+                if content is not None:
                     content = set(content)
             except Exception as error:
                 print("ERROR for command: select_e_str(%s,%s,%s)" % (e, r, t), error)
@@ -469,22 +495,19 @@ class Symbolics_WebQSP_novar():
             return {}
         else:
             try:
-                if "?" in e:
+                if self.is_date(date):
                     json_pack = dict()
                     json_pack['op'] = "execute_select_oper_date_lt"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
+                    json_pack['e'] = list(e)
                     json_pack['r'] = r
-                    json_pack['date'] = date
+                    json_pack['date'] = str(date)
                     jsonpost = json.dumps(json_pack)
                     content, content_result = requests.post(post_url, json=jsonpost).json()['content']
                     if content is not None and content_result == 0:
                         content = set(content)
                     else:
                         content = set([])
-                    intermediate_result = {e: content}
+                    intermediate_result = {'ANSWER': content}
             except:
                 print("ERROR for command: date_less_or_equal(%s, %s)" % (e, date))
             finally:
@@ -499,24 +522,21 @@ class Symbolics_WebQSP_novar():
             return {}
         else:
             try:
-                if "?" in e:
+                if self.is_date(date):
                     json_pack = dict()
                     json_pack['op'] = "execute_select_oper_date_gt"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
+                    json_pack['e'] = list(e)
                     json_pack['r'] = r
-                    json_pack['date'] = date
+                    json_pack['date'] = str(date)
                     jsonpost = json.dumps(json_pack)
                     content, content_result = requests.post(post_url, json=jsonpost).json()['content']
                     if content is not None and content_result == 0:
                         content = set(content)
                     else:
                         content = set([])
-                    intermediate_result = {e: content}
+                    intermediate_result = {'ANSWER': content}
             except:
-                print("ERROR for command: date_less_or_equal(%s, %s)" % (e, date))
+                print("ERROR for command: date_greater_or_equal(%s, %s)" % (e, date))
             finally:
                 return intermediate_result
 

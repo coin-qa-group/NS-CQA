@@ -133,7 +133,33 @@ def processSparql(sparql_str, id="empty", constraint_list=[]):
                 has_datetime = True
 
             if "FILTER(NOT EXISTS" in untreated_str:
-                a = 1
+                FILTER_time_list = untreated_str.split(" ")
+                filter_relation = ""
+                for FILTER_time_item in FILTER_time_list:
+                    if FILTER_time_item.startswith('ns:'):
+                        filter_relation = FILTER_time_item.replace("ns:", "")
+                        if index + 2 < len(untreated_list):
+                            to_find_date_op_str = untreated_list[index + 2]
+                            if "<=" in to_find_date_op_str:
+                                action_type = "A10"
+                                s = "?y"
+                                r = filter_relation
+                                tofind_date_list = to_find_date_op_str.split("\"")
+                                if len(tofind_date_list) == 3:
+                                    t = tofind_date_list[1]
+                                    action_item = Action(action_type, s, r, t)
+                                    if isValidAction(action_item):
+                                        sparql_list.append(action_item)
+                            elif ">=" in to_find_date_op_str:
+                                action_type = "A11"
+                                s = "?y"
+                                r = filter_relation
+                                tofind_date_list = to_find_date_op_str.split("\"")
+                                if len(tofind_date_list) == 3:
+                                    t = tofind_date_list[1]
+                                    action_item = Action(action_type, s, r, t)
+                                    if isValidAction(action_item):
+                                        sparql_list.append(action_item)
 
             if untreated_str.startswith("SELECT"):  # find answer key
                 for item in untreated_str.split(" "):
@@ -180,7 +206,7 @@ def processSparql(sparql_str, id="empty", constraint_list=[]):
                                                         relative_r = var_list[1].replace("ns:", "")
                                                         if var_name == t:
                                                             b_find_order_limit = True
-                                                            action_type = "A8" if "ORDER BY DESC" in untreated_str else "A7"
+                                                            action_type = "A8" if "ORDER BY DESC" in to_find_order else "A7"
                                                             action_item = Action(action_type, relative_var, relative_r, limit_n)
                                                             if isValidAction(action_item):
                                                                 sparql_list.append(action_item)
@@ -275,8 +301,9 @@ def isValidAction(action_item):
     e = action_item.e
     t = action_item.t
     str_t = str(action_item.t)
-    return (e.startswith("m.") or e.startswith("?"))\
-           and (str_t.startswith("m.") or str_t.startswith("?") or str_t == "" or isinstance(t, int))
+    # return (e.startswith("m.") or e.startswith("?"))\
+    #        and (str_t.startswith("m.") or str_t.startswith("?") or str_t == "" or isinstance(t, int))
+    return True
 
 def reorder(sparql_list, answer_keys):
     reorder_sparql_list = []
@@ -326,6 +353,12 @@ def add_next_variable(sparql_list, variable_key, reorder_sparql_list):
 
     for sql in variable_sql_list:
         if sql.action_type == "A9":
+            reorder_sparql_list.append(sql)
+            sparql_list.remove(sql)
+            variable_sql_list.remove(sql)
+
+    for sql in variable_sql_list:
+        if sql.action_type == "A10" or sql.action_type == "A11":
             reorder_sparql_list.append(sql)
             sparql_list.remove(sql)
             variable_sql_list.remove(sql)
@@ -529,7 +562,7 @@ def process_webqsp_RL():
 
             # assert answer_type == "Entity"
             # continue
-            # if id == "WebQTrn-235.P0":  # test one
+            # if id == "WebQTest-475.P0":  # test one
             if True:  # test all
                 # test seq
                 true_answer = Answers
@@ -1312,9 +1345,11 @@ if __name__ == "__main__":
     print("start process webqsp dataset")
     process_webqsp_RL()   # dataset to mask
 
-    # getTrainingDatasetForPytorch_seq2seq_webqsp() # PT.train
-    # getTrainingDatasetForPytorch_seq2seq_webqsp_novar() # PT.train
 
-    # getTrainingDatasetForRlWebQSP()
-    # getShareVocabularyForWebQSP() # share.question
+    getTrainingDatasetForPytorch_seq2seq_webqsp_novar() # PT.train
+
+    getTrainingDatasetForRlWebQSP()
+    getShareVocabularyForWebQSP() # share.question
     # testInputData()
+
+    # getTrainingDatasetForPytorch_seq2seq_webqsp() # PT.train

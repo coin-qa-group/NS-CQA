@@ -67,13 +67,16 @@ class Interpreter():
         relation = argument_value[0]
         type = argument_value[1]
         if relation is None or type is None:
-            return set([]), 1
-        tuple_set = set([])
+            return [], 1
+        entity_list = []
         for entity in self.freebase_kb:
             if relation in self.freebase_kb[entity] and type in self.freebase_kb[entity][relation]:
-                tuple_set.add(entity)
-                # print("A1 select_e", entity, relation, tuple_set)
-        return tuple_set, 0
+                entity_list.append(entity)
+                # print("A2 select_e", entity, relation, tuple_set)
+        # if self.is_kb_consistent(type, relation):
+        #     tuple_set.append(self.freebase_kb[type][relation])
+        #         # print("A2 select_e", entity, relation, tuple_set)
+        return entity_list, 0
 
     # # 通过实体-关系 查找所有时间三元组
     # def execute_gen_set1_date(self, argument_value, argument_location):
@@ -171,9 +174,9 @@ class Interpreter():
         e_list = list(e)
         right_date_e_list = []
         for e_item in e_list:
-            if self.is_kb_consistent(e, r):
-                e_item_date_list = self.freebase_kb[e][r]
-                if len(e_item_date_list) == 1:
+            if self.is_kb_consistent(e_item, r):
+                e_item_date_list = self.freebase_kb[e_item][r]
+                if len(e_item_date_list) > 0:
                     if self.convert_to_date(e_item_date_list[0]) <= self.convert_to_date(date):
                         right_date_e_list.append(e_item)
             else:
@@ -187,9 +190,9 @@ class Interpreter():
         e_list = list(e)
         right_date_e_list = []
         for e_item in e_list:
-            if self.is_kb_consistent(e, r):
-                e_item_date_list = self.freebase_kb[e][r]
-                if len(e_item_date_list) == 1:
+            if self.is_kb_consistent(e_item, r):
+                e_item_date_list = self.freebase_kb[e_item][r]
+                if len(e_item_date_list) > 0:
                     if self.convert_to_date(e_item_date_list[0]) >= self.convert_to_date(date):
                         right_date_e_list.append(e_item)
             else:
@@ -269,8 +272,8 @@ class Interpreter():
         for e_item in e:
             if self.is_kb_consistent(e_item, r):
                 temp_set[e_item] = self.freebase_kb[e_item][r]
-            else:
-                temp_set[e_item] = "NONE"
+            # else:
+            #     temp_set[e_item] = "NONE"
         return temp_set, 0
 
 @app.route('/post', methods=['POST'])
