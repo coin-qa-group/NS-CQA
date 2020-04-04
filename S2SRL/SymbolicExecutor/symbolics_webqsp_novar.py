@@ -242,11 +242,7 @@ class Symbolics_WebQSP_novar():
                 # if "?" in e:
                     json_pack = dict()
                     json_pack['op'] = "get_filter_answer"
-                    # if e in self.answer:
-                    #     json_pack['e'] = list(self.answer[e])
-                    # else:
-                    #     json_pack['e'] = []
-                    json_pack['e'] = list(e)
+                    json_pack['e'] = list(self.answer["ANSWER"]) if "ANSWER" in self.answer else []
                     json_pack['r'] = r
                     json_pack['t'] = t
                     jsonpost = json.dumps(json_pack)
@@ -394,7 +390,7 @@ class Symbolics_WebQSP_novar():
                     if self.is_date(e_item):
                         # date_list.append(self.get_date(e_item))
                         date_list.append(str(e_item))
-                json_pack['e'] = e if len(date_list) == 0 else date_list
+                json_pack['e'] = list(e) if len(date_list) == 0 else date_list
                 json_pack['r'] = r
                 jsonpost = json.dumps(json_pack)
                 content, content_result = requests.post(post_url, json=jsonpost).json()['content']

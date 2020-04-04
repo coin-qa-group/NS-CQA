@@ -151,24 +151,6 @@ def processSparql(sparql_str, id="empty", constraint_list=[]):
                 action_item = Action(action_type, s, r, t)
                 if isValidAction(action_item):
                     sparql_list.append(action_item)
-            elif "ORDER BY" in untreated_str:
-                action_type = "A8" if "ORDER BY DESC" in untreated_str else "A7"
-                start_index = untreated_str.find("?")
-                if start_index != -1:
-                    end_index = untreated_str.find(")", start_index) if action_type == "A8" else len(untreated_str)
-                    if end_index != -1:
-                        var_name = untreated_str[start_index:end_index-1]
-                        if index < len(untreated_list):
-                            if untreated_list[index+1].startswith("LIMIT "):
-                                limit_n = int(untreated_list[index+1].replace("LIMIT ", ""))
-                                for to_find_var in untreated_list:
-                                    if var_name in to_find_var:
-                                        var_list = to_find_var.strip().split(" ")
-                                        relative_var = var_list[0]
-                                        relative_r = var_list[1].replace("ns:", "")
-                                        action_item = Action(action_type, relative_var, relative_r, limit_n)
-                                        if isValidAction(action_item):
-                                            sparql_list.append(action_item)
             elif untreated_str.count("?") == 2 and ("FILTER" not in untreated_str or "EXISTS" not in untreated_str):
                 action_type = "A4"  # joint
                 triple_list = untreated_str.split(" ")
@@ -177,9 +159,35 @@ def processSparql(sparql_str, id="empty", constraint_list=[]):
                     r = triple_list[1].replace("ns:", "")
                     t = triple_list[2].replace("ns:", "")
                     if s != "" and r != "" and t != "":
-                        action_item = Action(action_type, s, r, t)
-                        if isValidAction(action_item):
-                            sparql_list.append(action_item)
+                        b_find_order_limit = False
+                        to_find_order_index = -1
+                        for to_find_order in untreated_list:
+                            to_find_order_index += 1
+                            if "ORDER BY" in to_find_order:
+                                start_index = to_find_order.find("?")
+                                if start_index != -1:
+                                    end_index = to_find_order.find(")", start_index) if (action_type == "A8" or action_type == "A4")else len(
+                                        to_find_order)
+                                    if end_index != -1:
+                                        var_name = to_find_order[start_index:end_index]
+                                        if to_find_order_index < len(to_find_order):
+                                            if untreated_list[to_find_order_index + 1].startswith("LIMIT "):
+                                                limit_n = int(untreated_list[to_find_order_index + 1].replace("LIMIT ", ""))
+                                                for to_find_var in untreated_list:
+                                                    if var_name in to_find_var:
+                                                        var_list = to_find_var.strip().split(" ")
+                                                        relative_var = var_list[0]
+                                                        relative_r = var_list[1].replace("ns:", "")
+                                                        if var_name == t:
+                                                            b_find_order_limit = True
+                                                            action_type = "A8" if "ORDER BY DESC" in untreated_str else "A7"
+                                                            action_item = Action(action_type, relative_var, relative_r, limit_n)
+                                                            if isValidAction(action_item):
+                                                                sparql_list.append(action_item)
+                        if not b_find_order_limit:
+                            action_item = Action(action_type, s, r, t)
+                            if isValidAction(action_item):
+                                sparql_list.append(action_item)
             elif untreated_str.count("?") == 1 and untreated_str.startswith("ns:"):
                 # base action: select
                 action_type = "A1"
@@ -236,7 +244,7 @@ def processSparql(sparql_str, id="empty", constraint_list=[]):
                 seqlist.append(item.e)
             if str(item.r) != '' and '?' not in str(item.r):
                 seqlist.append(item.r)
-            if str(item.t) != '' and '?' not in str(item.t) :
+            if str(item.t) != '' and '?' not in str(item.t):
                 seqlist.append(item.t)
             seqset[item.action_type] = seqlist
             old_sqarql_list.append(seqset)
@@ -435,8 +443,8 @@ def process_webqsp_RL():
         load_dictTrain = json.load(webQaTrain)
     with open("WebQSP.test.json", "r", encoding='UTF-8') as webQaTest:
         load_dictTest = json.load(webQaTest)
-    # with open("to_handle.json", "r", encoding='UTF-8') as to_handle_file:
-    with open("human_mark.json", "r", encoding='UTF-8') as to_handle_file:
+    with open("to_handle.json", "r", encoding='UTF-8') as to_handle_file:
+    # with open("human_mark.json", "r", encoding='UTF-8') as to_handle_file:
         to_handle_list = json.load(to_handle_file)
     with open("to_test_by_hand.json", "r", encoding='UTF-8') as to_test_by_hand_file:
         to_test_by_hand_list = json.load(to_test_by_hand_file)
@@ -521,7 +529,7 @@ def process_webqsp_RL():
 
             # assert answer_type == "Entity"
             # continue
-            # if id == "WebQTest-1.P0":  # test one
+            # if id == "WebQTrn-235.P0":  # test one
             if True:  # test all
                 # test seq
                 true_answer = Answers
@@ -555,9 +563,9 @@ def process_webqsp_RL():
                         if b_print:
                             print(id, reward)
                         if reward != 1.0:
-                            # result_list.append({id: [seq, reward]})
-                            # result_list.append({id + "res_answer": list(res_answer)})
-                            # result_list.append({id + "true_answer": list(true_answer)})
+                            result_list.append({id: [seq, reward]})
+                            result_list.append({id + "_res_answer": list(res_answer)})
+                            result_list.append({id + "_true_answer": list(true_answer)})
                             errorlist.append(id)
 
                         reward_jaccard = calc_01_reward_type(res_answer, true_answer, "jaccard")
@@ -765,11 +773,11 @@ def process_webqsp_RL():
     fileObject.write(jsondata)
     fileObject.close()
 
-    # # result_list
-    # jsondata = json.dumps(result_list, indent=1)
-    # fileObject = open('result_list.json', 'w')
-    # fileObject.write(jsondata)
-    # fileObject.close()
+    # result_list
+    jsondata = json.dumps(result_list, indent=1)
+    fileObject = open('result_list.json', 'w')
+    fileObject.write(jsondata)
+    fileObject.close()
 
     # result_list
     jsondata = json.dumps(errorlist, indent=1)

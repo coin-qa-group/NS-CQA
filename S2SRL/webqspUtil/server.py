@@ -241,11 +241,18 @@ class Interpreter():
         e_list = []
         try:
             if isinstance(e, list) and len(e) > 0 and r is not None:
-                for entity in e:
-                    if self.gen_exist(entity, r, t) != -1:
-                        # temp_set.update((self.freebase_kb[entity][r]))
-                        # new_e = self.freebase_kb[t][r]
-                        e_list.append(entity)
+                if len(e) > 100:
+                    for entity in e:
+                        if self.exist(entity, r, t):
+                            # temp_set.update((self.freebase_kb[entity][r]))
+                            # new_e = self.freebase_kb[t][r]
+                            e_list.append(entity)
+                else:
+                    for entity in e:
+                        if self.gen_exist(entity, r, t) != -1:
+                            # temp_set.update((self.freebase_kb[entity][r]))
+                            # new_e = self.freebase_kb[t][r]
+                            e_list.append(entity)
 
                     # if self.exist(entity, r, t):
                     #     e_list.append(entity)
@@ -262,6 +269,8 @@ class Interpreter():
         for e_item in e:
             if self.is_kb_consistent(e_item, r):
                 temp_set[e_item] = self.freebase_kb[e_item][r]
+            else:
+                temp_set[e_item] = "NONE"
         return temp_set, 0
 
 @app.route('/post', methods=['POST'])
