@@ -202,7 +202,7 @@ if __name__ == "__main__":
                     # print (input_tokens)
                     # Get IDs of reference sequences' tokens corresponding to idx-th input sequence in batch.
                     qa_info = output_batch[idx]
-                    print("%s is training..." % (qa_info['qid']))
+                    # print("%s is training..." % (qa_info['qid']))
                     # print (qa_info['qid'])
                     # # Get the (two-layer) hidden state of encoder of idx-th input sequence in batch.
                     item_enc = net.get_encoded_item(enc, idx)
@@ -313,7 +313,7 @@ if __name__ == "__main__":
                         net_advantages.extend([sample_reward - argmax_reward] * len(actions))
                         true_reward_sample.append(sample_reward)
                     dial_shown = True
-                    log.info("Epoch %d, Batch %d, Sample %d: %s is trained!", epoch, batch_count, idx, qa_info['qid'])
+                    # log.info("Epoch %d, Batch %d, Sample %d: %s is trained!", epoch, batch_count, idx, qa_info['qid'])
 
                 if not net_policies:
                     continue
@@ -360,6 +360,8 @@ if __name__ == "__main__":
                 tb_tracker.track("advantage", adv_v, batch_idx)
                 tb_tracker.track("loss_policy", loss_policy_v, batch_idx)
                 tb_tracker.track("loss_total", loss_v, batch_idx)
+
+                log.info("Epoch %d, Batch %d is trained!", epoch, batch_count)
 
             # After one epoch, compute the bleus for samples in test dataset.
             true_reward_test = run_test(test_data, net, rev_emb_dict, end_token, device)
