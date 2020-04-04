@@ -260,7 +260,7 @@ class PhraseModel(nn.Module):
                 break
         return torch.cat(res_logits), res_actions
 
-    def beam_decode(self, hid, begin_emb, seq_len, context, start_token, stop_at_token = None, beam_width = 10, topk = 5):
+    def beam_decode(self, hid, seq_len, context, start_token, stop_at_token = None, beam_width = 10, topk = 5):
         '''
         :param target_tensor: target indexes tensor of shape [B, T] where B is the batch size and T is the maximum length of the output sentence
         :param decoder_hidden: input tensor of shape [1, B, H] for start of the decoding
@@ -276,7 +276,8 @@ class PhraseModel(nn.Module):
 
         # start the queue
         # The smaller the value is, the higher the priority of the node is.
-        nodes.put((-node.eval(), node))
+        # The unique ID of a node is used to avoid conflict between elements in the heap.
+        nodes.put((-node.eval(), id(node), node))
         qsize = 1
 
         # start beam search
@@ -286,7 +287,7 @@ class PhraseModel(nn.Module):
                 break
 
             # fetch the best node
-            score, n = nodes.get()
+            score, _, n = nodes.get()
 
             action_v = n.wordid
             # Get the embedding of the sampled output token.
@@ -295,7 +296,7 @@ class PhraseModel(nn.Module):
 
             # tensor.item(): if only one element is in the tensor, tensor.item() will return the value of the element.
             if n.wordid.item() == stop_at_token or n.leng == seq_len and n.prevNode != None:
-                endnodes.append((score, n))
+                endnodes.append((score, id(n), n))
                 # if we reached maximum # of sentences required
                 if len(endnodes) >= number_required:
                     break
@@ -324,7 +325,7 @@ class PhraseModel(nn.Module):
             # put them into queue
             for i in range(len(nextnodes)):
                 score, nn = nextnodes[i]
-                nodes.put((score, nn))
+                nodes.put((score, id(nn), nn))
                 # increase qsize
             qsize += len(nextnodes) - 1
 
@@ -341,7 +342,7 @@ class PhraseModel(nn.Module):
         # a = [ (1,'z'), (2, 'x'), (3, 'y') ]
         # a.sort(key=operator.itemgetter(1))
         # Or using lambda: a.sort(key=lambda x: x[1])
-        for score, n in sorted(endnodes, key=operator.itemgetter(0)):
+        for score, _, n in sorted(endnodes, key=operator.itemgetter(0)):
             utterance = []
             res_logits = []
 
