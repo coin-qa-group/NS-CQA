@@ -48,6 +48,7 @@ class Symbolics():
                         print('ERROR! The action is Select(%s,%s,%s).' %(e,r,t))
                         print('The sequence is:')
                         print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A2: SelectAll (et, r, t)
@@ -58,6 +59,7 @@ class Symbolics():
                         print('ERROR! The action is SelectAll(%s,%s,%s).' % (e,r,t))
                         print('The sequence is:')
                         print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A3: Bool(e)
@@ -72,9 +74,10 @@ class Symbolics():
                                 temp = [bool_temp_result]
                                 self.answer.setdefault('|BOOL_RESULT|', temp)
                     except:
-                        print('ERROR! The action is Bool(%s).' %e)
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is Bool(%s).' %e)
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A4: ArgMin
@@ -82,9 +85,10 @@ class Symbolics():
                     try:
                         self.answer = self.arg_min()
                     except:
-                        print('ERROR! The action is ArgMin.')
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is ArgMin.')
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A5: ArgMax
@@ -92,9 +96,10 @@ class Symbolics():
                     try:
                         self.answer = self.arg_max()
                     except:
-                        print('ERROR! The action is ArgMax.')
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is ArgMax.')
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A6: GreaterThan(e)
@@ -102,9 +107,10 @@ class Symbolics():
                     try:
                         self.answer = self.greater_than(e,r,t)
                     except:
-                        print('ERROR! The action is GreaterThan(%s,%s,%s).' % (e,r,t))
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is GreaterThan(%s,%s,%s).' % (e,r,t))
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A7: LessThan(e)
@@ -112,9 +118,10 @@ class Symbolics():
                     try:
                         self.answer = self.less_than(e,r,t)
                     except:
-                        print('ERROR! The action is LessThan(%s,%s,%s).' % (e,r,t))
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is LessThan(%s,%s,%s).' % (e,r,t))
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A9: Union(e，r，t)
@@ -122,9 +129,10 @@ class Symbolics():
                     try:
                         self.answer = self.union(e, r, t)
                     except:
-                        print('ERROR! The action is Union(%s,%s,%s).' % (e,r,t))
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is Union(%s,%s,%s).' % (e,r,t))
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A8: Inter(e，r，t)
@@ -132,9 +140,10 @@ class Symbolics():
                     try:
                         self.answer = self.inter(e, r, t)
                     except:
-                        print('ERROR! The action is Inter(%s,%s,%s).' % (e,r,t))
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is Inter(%s,%s,%s).' % (e,r,t))
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A10: Diff(e，r，t)
@@ -142,9 +151,10 @@ class Symbolics():
                     try:
                         self.answer = self.diff(e, r, t)
                     except:
-                        print('ERROR! The action is Diff(%s,%s,%s).' % (e,r,t))
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is Diff(%s,%s,%s).' % (e,r,t))
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A11: Count(e)
@@ -152,9 +162,10 @@ class Symbolics():
                     try:
                         self.answer = self.count(e)
                     except:
-                        print('ERROR! The action is Count(%s).' %e)
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is Count(%s).' %e)
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A12: ATLEAST(N)
@@ -162,9 +173,10 @@ class Symbolics():
                     try:
                         self.answer = self.at_least(e)
                     except:
-                        print('ERROR! The action is ATLEAST(%s).' %e)
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is ATLEAST(%s).' %e)
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A13: ATMOST(N)
@@ -172,9 +184,10 @@ class Symbolics():
                     try:
                         self.answer = self.at_most(e)
                     except:
-                        print('ERROR! The action is ATMOST(%s).' %e)
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is ATMOST(%s).' %e)
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A14: EQUAL(N)
@@ -182,9 +195,10 @@ class Symbolics():
                     try:
                         self.answer = self.equal(e)
                     except:
-                        print('ERROR! The action is EQUAL(%s).' %e)
-                        print('The sequence is:')
-                        print(self.seq)
+                        # print('ERROR! The action is EQUAL(%s).' %e)
+                        # print('The sequence is:')
+                        # print(self.seq)
+                        self.answer = {}
                     finally:
                         self.print_answer()
                 # A15: Almost(N)
@@ -196,13 +210,15 @@ class Symbolics():
                             self.answer = self.around(e,r,t)
                     except:
                         if r == "" and t == "":
-                            print('ERROR! The action is Almost(%s).' %e)
-                            print('The sequence is:')
-                            print(self.seq)
+                            # print('ERROR! The action is Almost(%s).' %e)
+                            # print('The sequence is:')
+                            # print(self.seq)
+                            self.answer = {}
                         else:
-                            print('ERROR! The action is Almost(%s,%s,%s).' %(e,r,t))
-                            print('The sequence is:')
-                            print(self.seq)
+                            # print('ERROR! The action is Almost(%s,%s,%s).' %(e,r,t))
+                            # print('The sequence is:')
+                            # print(self.seq)
+                            self.answer = {}
                     finally:
                         self.print_answer()
                 elif ("A17" in symbolic):
@@ -482,9 +498,9 @@ class Symbolics():
             else:
                 return 0
         except:
-            print("ERROR! THE ACTION IS count(%s)!" %e)
-            print('The sequence is:')
-            print(self.seq)
+            # print("ERROR! THE ACTION IS count(%s)!" %e)
+            # print('The sequence is:')
+            # print(self.seq)
             return 0
 
     # TODO: NOT TESTED
