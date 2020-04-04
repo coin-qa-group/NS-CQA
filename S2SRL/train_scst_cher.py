@@ -14,6 +14,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 import time
 import ptan
+import json
 
 SAVES_DIR = "../data/saves"
 
@@ -62,7 +63,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%_att=0_withINT/pre_bleu_0.952_84.dat', '-n=rl_TR_1%_batch8_att=0_withINT', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=300', '-beam_width=10']
+    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_1%_att=0_withINT_w2v=300/pre_bleu_0.956_43.dat', '-n=rl_TR_1%_batch8_att=0_withINT_test', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=300', '-beam_width=10']
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. Empty string to train on full processDataset")
@@ -201,7 +202,7 @@ if __name__ == "__main__":
                     # print (input_tokens)
                     # Get IDs of reference sequences' tokens corresponding to idx-th input sequence in batch.
                     qa_info = output_batch[idx]
-                    # print("%s is training..." % (qa_info['qid']))
+                    print("%s is training..." % (qa_info['qid']))
                     # print (qa_info['qid'])
                     # # Get the (two-layer) hidden state of encoder of idx-th input sequence in batch.
                     item_enc = net.get_encoded_item(enc, idx)
@@ -236,7 +237,7 @@ if __name__ == "__main__":
 
                     sample_logits_list, action_sequence_list = net.beam_decode(hid=item_enc, begin_emb=beg_embedding, seq_len=data.MAX_TOKENS, context=context[idx], start_token=beg_token, stop_at_token=end_token, beam_width=10, topk=args.samples)
 
-                    action_memory = list()
+                    # action_memory = list()
                     for sample_index in range(args.samples):
                         # 'r_sample' is the list of out_logits list and 'actions' is the list of output tokens.
                         # The output tokens are sampled following probability by using chain_sampling.
@@ -312,7 +313,7 @@ if __name__ == "__main__":
                         net_advantages.extend([sample_reward - argmax_reward] * len(actions))
                         true_reward_sample.append(sample_reward)
                     dial_shown = True
-                    print("Epoch %d, Batch %d, Sample %d: %s is trained!" %(epoch, batch_count, idx, qa_info['qid']))
+                    log.info("Epoch %d, Batch %d, Sample %d: %s is trained!", epoch, batch_count, idx, qa_info['qid'])
 
                 if not net_policies:
                     continue
@@ -380,6 +381,14 @@ if __name__ == "__main__":
             # if epoch % 10 == 0:
             # # The parameters are stored after each epoch.
             torch.save(net.state_dict(), os.path.join(saves_path, "epoch_%03d_%.3f_%.3f.dat" % (epoch, float(true_reward_armax), true_reward_test)))
+
+            # In case the training is interrupted, record the memory buffer in each epoch.
+            json_path = os.path.join(saves_path, "action_memory_epoch_%03d_%.3f_%.3f.json" % (
+            epoch, float(true_reward_armax), true_reward_test))
+            fw = open(json_path, 'w', encoding="UTF-8")
+            fw.writelines(json.dumps(memory_buffer, indent=1, ensure_ascii=False))
+            fw.close()
+
         time_end = time.time()
         log.info("Training time is %.3fs." % (time_end - time_start))
         print("Training time is %.3fs." % (time_end - time_start))
