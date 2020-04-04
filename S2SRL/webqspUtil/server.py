@@ -242,13 +242,14 @@ class Interpreter():
         try:
             if isinstance(e, list) and len(e) > 0 and r is not None:
                 for entity in e:
-                    if self.gen_exist(entity, r, t) == 2:
+                    if self.gen_exist(entity, r, t) != -1:
                         # temp_set.update((self.freebase_kb[entity][r]))
                         # new_e = self.freebase_kb[t][r]
                         e_list.append(entity)
-                    elif self.gen_exist(entity, r, t) == 1:
-                        # new_e = self.freebase_kb[entity][r]
-                        e_list.append(entity)
+
+                    # if self.exist(entity, r, t):
+                    #     e_list.append(entity)
+
                 return e_list, 0
             else:
                 return e_list, 1

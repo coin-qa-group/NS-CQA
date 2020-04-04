@@ -435,10 +435,13 @@ def process_webqsp_RL():
         load_dictTrain = json.load(webQaTrain)
     with open("WebQSP.test.json", "r", encoding='UTF-8') as webQaTest:
         load_dictTest = json.load(webQaTest)
-    with open("to_handle.json", "r", encoding='UTF-8') as to_handle_file:
+    # with open("to_handle.json", "r", encoding='UTF-8') as to_handle_file:
+    with open("human_mark.json", "r", encoding='UTF-8') as to_handle_file:
         to_handle_list = json.load(to_handle_file)
     with open("to_test_by_hand.json", "r", encoding='UTF-8') as to_test_by_hand_file:
         to_test_by_hand_list = json.load(to_test_by_hand_file)
+    with open("errorlist.json", "r", encoding='UTF-8') as errors_file:
+        errorlist_file_list = json.load(errors_file)
 
     train_questions = load_dictTrain["Questions"]
     test_questions = load_dictTest["Questions"]
@@ -458,12 +461,6 @@ def process_webqsp_RL():
         question = parse_q["ProcessedQuestion"]
         for q in parse_q["Parses"]:
             id = q["ParseId"]
-            # if id not in WebQSPList_Correct:
-            #     continue
-            # if id not in to_test_by_hand_list:
-            #     continue
-            if id in to_handle_list:
-                continue
             if b_print:
                 print(id)
             all_count += 1
@@ -473,262 +470,269 @@ def process_webqsp_RL():
             if len(answerList) == 0:
                 print(id, "no gold answer")
                 no_gold_answer.append(id)
-            else:
-                Answers = []
-                orig_response_list = []
-                for an in answerList:
-                    Answers.append(an['AnswerArgument'])
-                    orig_response_list.append(an['AnswerArgument'])
+            Answers = []
+            orig_response_list = []
+            for an in answerList:
+                Answers.append(an['AnswerArgument'])
+                orig_response_list.append(an['AnswerArgument'])
+            answer_type = 'NONE'
+            if len(answerList) > 0:
                 answer_type = answerList[0]['AnswerType']
-                response_entities = Answers
-                orig_response_str = ', '.join(orig_response_list)
+            response_entities = Answers
+            orig_response_str = ', '.join(orig_response_list)
 
-                constraint_list = q['Constraints']
-                for constraint in constraint_list:
-                    Operator = constraint['Operator']
-                    ArgumentType = constraint['ArgumentType']
-                    Argument = constraint['Argument']
-                    EntityName = constraint['EntityName']
-                    SourceNodeIndex = constraint['SourceNodeIndex']
-                    NodePredicate = constraint['NodePredicate']
-                    ValueType = constraint['ValueType']
-                    if Operator == "LessOrEqual":
-                        s = 1
+            constraint_list = q['Constraints']
+            for constraint in constraint_list:
+                Operator = constraint['Operator']
+                ArgumentType = constraint['ArgumentType']
+                Argument = constraint['Argument']
+                EntityName = constraint['EntityName']
+                SourceNodeIndex = constraint['SourceNodeIndex']
+                NodePredicate = constraint['NodePredicate']
+                ValueType = constraint['ValueType']
+                if Operator == "LessOrEqual":
+                    s = 1
 
-                    if Operator == "GreaterOrEqual":
-                        s = 1
+                if Operator == "GreaterOrEqual":
+                    s = 1
 
-                    # "Operator": "Equal",
-                    # "ArgumentType": "Entity",
-                    # "Argument": "m.04ztj",
-                    # "EntityName": "Marriage",
-                    # "SourceNodeIndex": 0,
-                    # "NodePredicate": "people.marriage.type_of_union",
-                    # "ValueType": "String"
+                # "Operator": "Equal",
+                # "ArgumentType": "Entity",
+                # "Argument": "m.04ztj",
+                # "EntityName": "Marriage",
+                # "SourceNodeIndex": 0,
+                # "NodePredicate": "people.marriage.type_of_union",
+                # "ValueType": "String"
 
-                    # "Operator": "LessOrEqual",
-                    # "ArgumentType": "Value",
-                    # "Argument": "2015-08-10",
-                    # "EntityName": "",
-                    # "SourceNodeIndex": 0,
-                    # "NodePredicate": "sports.sports_team_roster.from",
-                    # # "ValueType": "DateTime"
+                # "Operator": "LessOrEqual",
+                # "ArgumentType": "Value",
+                # "Argument": "2015-08-10",
+                # "EntityName": "",
+                # "SourceNodeIndex": 0,
+                # "NodePredicate": "sports.sports_team_roster.from",
+                # # "ValueType": "DateTime"
 
+            if answer_type == "Value":
+                AnswerType_Value_idlist.append(id)
+                sr_list = processSparql_value(sparql)
+                if len(sr_list) == 2:
+                    for an in Answers:
+                        to_add_list.append(str(sr_list[0] + '**' + sr_list[1] + '**' + an))
 
-                if answer_type == "Value":
-                    AnswerType_Value_idlist.append(id)
-                    sr_list = processSparql_value(sparql)
-                    if len(sr_list) == 2:
-                        for an in Answers:
-                            to_add_list.append(str(sr_list[0] + '**' + sr_list[1] + '**' + an))
+            # assert answer_type == "Entity"
+            # continue
+            # if id == "WebQTest-1.P0":  # test one
+            if True:  # test all
+                # test seq
+                true_answer = Answers
+                test_sparql = sparql
+                sparql_str_type = ""
+                # if id not in errorlist_file_list:
+                #     continue
+                if id in to_handle_list:
+                    seq = to_handle_list[id]["action_sequence_list"]
                 else:
-                    # assert answer_type == "Entity"
-                    # continue
-                    # if id == "WebQTrn-193.P0":  # test one
-                    if True:  # test all
-                        # test seq
-                        true_answer = Answers
-                        test_sparql = sparql
-                        seq, sparql_str_type = processSparql(test_sparql, id, constraint_list)
-                        seq = getsimple_seq(seq)
-                        if sparql_str_type == "UNION":
-                            has_union_list.append(id)
-                        elif sparql_str_type == "filter_date":
-                            has_datetime_list.append(id)
+                    seq, sparql_str_type = processSparql(test_sparql, id, constraint_list)
+                    seq = getsimple_seq(seq)
+                if sparql_str_type == "UNION":
+                    has_union_list.append(id)
+                elif sparql_str_type == "filter_date":
+                    has_datetime_list.append(id)
 
+                if b_print:
+                    print(seq)
+                symbolic_exe = Symbolics_WebQSP_novar(seq, tid=id)
+                answer = symbolic_exe.executor()
+                if b_print:
+                    print("answer: ", answer)
+                    print("true_answer: ", true_answer)
+                try:
+                    # key = "?x"
+                    key = "ANSWER"
+                    if key in answer or True:
+                        res_answer = answer[key] if key in answer else []
+                        reward = calc_01_reward_type(res_answer, true_answer, "f1")
                         if b_print:
-                            print(seq)
-                        symbolic_exe = Symbolics_WebQSP_novar(seq)
-                        answer = symbolic_exe.executor()
-                        if b_print:
-                            print("answer: ", answer)
-                            print("true_answer: ", true_answer)
-                        try:
-                            # key = "?x"
-                            key = "ANSWER"
-                            if key in answer:
-                                res_answer = answer[key]
-                                reward = calc_01_reward_type(res_answer, true_answer, "f1")
-                                if b_print:
-                                    print(id, reward)
-                                if reward != 1.0:
-                                    result_list.append({id: [seq, reward]})
-                                    result_list.append({id + "res_answer": list(res_answer)})
-                                    result_list.append({id + "true_answer": list(true_answer)})
+                            print(id, reward)
+                        if reward != 1.0:
+                            # result_list.append({id: [seq, reward]})
+                            # result_list.append({id + "res_answer": list(res_answer)})
+                            # result_list.append({id + "true_answer": list(true_answer)})
+                            errorlist.append(id)
 
-                                reward_jaccard = calc_01_reward_type(res_answer, true_answer, "jaccard")
-                                reward_recall = calc_01_reward_type(res_answer, true_answer, "recall")
-                                reward_precision = calc_01_reward_type(res_answer, true_answer, "precision")
-                                test_count += 1
-                                if reward == 1.0:
-                                    # if get right answer, generate action sequence
-                                    true_count += 1
-                                    entity = set()
-                                    relation = set()
-                                    types = set()
-                                    e_index = 1
-                                    r_index = 1
-                                    t_index = 1
-                                    for srt in seq:
-                                        for k, v in srt.items():
-                                            if k in ['A1']:
-                                                if len(v) > 0:
-                                                    if v[0] != "" and v[0] not in entity:
-                                                        entity.add(v[0])
-                                                if len(v) > 1:
-                                                    if v[1] != "" and v[1] not in relation:
-                                                        relation.add(v[1])
-                                            elif k in ['A2', 'A3', 'A7', 'A8', 'A10', 'A11']:
-                                                if len(v) > 0:
-                                                    if v[0] != "" and v[0] not in relation:
-                                                        relation.add(v[0])
-                                                if len(v) > 1:
-                                                    if v[1] != "" and v[1] not in types:
-                                                        types.add(v[1])
-                                            elif k in ['A4']:
-                                                if len(v) > 0:
-                                                    if v[0] != "":
-                                                        relation.add(v[0])
-                                            elif k in ['A5']:
-                                                if len(v) > 0:
-                                                    if v[0] != "":
-                                                        types.add(v[0])
+                        reward_jaccard = calc_01_reward_type(res_answer, true_answer, "jaccard")
+                        reward_recall = calc_01_reward_type(res_answer, true_answer, "recall")
+                        reward_precision = calc_01_reward_type(res_answer, true_answer, "precision")
+                        test_count += 1
+                        if reward <= 1.0:
+                            # if get right answer, generate action sequence
+                            true_count += 1
+                            entity = set()
+                            relation = set()
+                            types = set()
+                            e_index = 1
+                            r_index = 1
+                            t_index = 1
+                            for srt in seq:
+                                for k, v in srt.items():
+                                    if k in ['A1']:
+                                        if len(v) > 0:
+                                            if v[0] != "" and v[0] not in entity:
+                                                entity.add(v[0])
+                                        if len(v) > 1:
+                                            if v[1] != "" and v[1] not in relation:
+                                                relation.add(v[1])
+                                    elif k in ['A2', 'A3', 'A7', 'A8', 'A10', 'A11']:
+                                        if len(v) > 0:
+                                            if v[0] != "" and v[0] not in relation:
+                                                relation.add(v[0])
+                                        if len(v) > 1:
+                                            if v[1] != "" and v[1] not in types:
+                                                types.add(v[1])
+                                    elif k in ['A4']:
+                                        if len(v) > 0:
+                                            if v[0] != "":
+                                                relation.add(v[0])
+                                    elif k in ['A5']:
+                                        if len(v) > 0:
+                                            if v[0] != "":
+                                                types.add(v[0])
 
-                                            # if v[2] != "" and v[2] not in entity:
-                                            #     entity.add(v[2])
-                                            # if len(v) > 2:
-                                            #     if v[2] != "" and v[2] not in types:
-                                            #         types.add(v[2])
-                                    entity = list(entity)
-                                    relation = list(relation)
-                                    types = list(types)
-                                    # types.sort(reverse=True)
-                                    # entity.sort(reverse=True)
-                                    entity_mask = dict()
-                                    relation_mask = dict()
-                                    type_mask = dict()
-                                    # try:
-                                    #     entity = sorted(entity)
-                                    # finally:
-                                    #     entity = entity
-                                    # relation = sorted(relation)
-                                    # type = sorted(type)
-                                    for e in entity:
-                                        dict_entity = {e: "ENTITY{0}".format(e_index)}
-                                        entity_mask.update(dict_entity)
-                                        e_index += 1
-                                    for r in relation:
-                                        dict_relation = {r: "RELATION{0}".format(r_index)}
-                                        relation_mask.update(dict_relation)
-                                        r_index += 1
-                                    for t in types:
-                                        dict_type = {t: "TYPE{0}".format(t_index)}
-                                        type_mask.update(dict_type)
-                                        t_index += 1
-                                    mask_action_sequence_list = []
+                                    # if v[2] != "" and v[2] not in entity:
+                                    #     entity.add(v[2])
+                                    # if len(v) > 2:
+                                    #     if v[2] != "" and v[2] not in types:
+                                    #         types.add(v[2])
+                            entity = list(entity)
+                            relation = list(relation)
+                            types = list(types)
+                            # types.sort(reverse=True)
+                            # entity.sort(reverse=True)
+                            entity_mask = dict()
+                            relation_mask = dict()
+                            type_mask = dict()
+                            # try:
+                            #     entity = sorted(entity)
+                            # finally:
+                            #     entity = entity
+                            # relation = sorted(relation)
+                            # type = sorted(type)
+                            for e in entity:
+                                dict_entity = {e: "ENTITY{0}".format(e_index)}
+                                entity_mask.update(dict_entity)
+                                e_index += 1
+                            for r in relation:
+                                dict_relation = {r: "RELATION{0}".format(r_index)}
+                                relation_mask.update(dict_relation)
+                                r_index += 1
+                            for t in types:
+                                dict_type = {t: "TYPE{0}".format(t_index)}
+                                type_mask.update(dict_type)
+                                t_index += 1
+                            mask_action_sequence_list = []
 
-                                    for srt in seq:
-                                        mask_set = {}
-                                        masklist = []
-                                        a_mask = ""
-                                        e_mask = ""
-                                        r_mask = ""
-                                        t_mask = ""
-                                        e_mask_key = ""
-                                        r_mask_key = ""
-                                        t_mask_key = ""
-                                        for k, v in srt.items():
-                                            a_mask = k
-                                            if k in ['A1']:
-                                                e_mask_key = v[0]
-                                                r_mask_key = v[1]
-                                            elif k in ['A2', 'A3', 'A7', 'A8', 'A10', 'A11']:
-                                                r_mask_key = v[0]
-                                                t_mask_key = v[1]
-                                            elif k in ['A4']:
-                                                r_mask_key = v[0]
-                                            elif k in ['A5']:
-                                                t_mask_key = v[0]
-                                            #
-                                            # if len(v) > 0:
-                                            #     e_mask_key = v[0]
-                                            # if len(v) > 1:
-                                            #     r_mask_key = v[1]
-                                            # t_mask_key = v[2]
-                                            e_mask = entity_mask[e_mask_key] if e_mask_key != "" else ""
-                                            r_mask = relation_mask[r_mask_key] if r_mask_key != "" else ""
-                                            t_mask = type_mask[t_mask_key] if t_mask_key != "" and t_mask_key in type_mask else ""
-                                        if a_mask != "":
-                                            if e_mask != "":
-                                                masklist.append(e_mask)
-                                            if r_mask != "":
-                                                masklist.append(r_mask)
-                                            if t_mask != "":
-                                                masklist.append(t_mask)
-                                            mask_set = {a_mask: masklist}
-                                            mask_action_sequence_list.append(mask_set)
+                            for srt in seq:
+                                mask_set = {}
+                                masklist = []
+                                a_mask = ""
+                                e_mask = ""
+                                r_mask = ""
+                                t_mask = ""
+                                e_mask_key = ""
+                                r_mask_key = ""
+                                t_mask_key = ""
+                                for k, v in srt.items():
+                                    a_mask = k
+                                    if k in ['A1']:
+                                        e_mask_key = v[0]
+                                        r_mask_key = v[1]
+                                    elif k in ['A2', 'A3', 'A7', 'A8', 'A10', 'A11']:
+                                        r_mask_key = v[0]
+                                        t_mask_key = v[1]
+                                    elif k in ['A4']:
+                                        r_mask_key = v[0]
+                                    elif k in ['A5']:
+                                        t_mask_key = v[0]
+                                    #
+                                    # if len(v) > 0:
+                                    #     e_mask_key = v[0]
+                                    # if len(v) > 1:
+                                    #     r_mask_key = v[1]
+                                    # t_mask_key = v[2]
+                                    e_mask = entity_mask[e_mask_key] if e_mask_key != "" else ""
+                                    r_mask = relation_mask[r_mask_key] if r_mask_key != "" else ""
+                                    t_mask = type_mask[t_mask_key] if t_mask_key != "" and t_mask_key in type_mask else ""
+                                if a_mask != "":
+                                    if e_mask != "":
+                                        masklist.append(e_mask)
+                                    if r_mask != "":
+                                        masklist.append(r_mask)
+                                    if t_mask != "":
+                                        masklist.append(t_mask)
+                                    mask_set = {a_mask: masklist}
+                                    mask_action_sequence_list.append(mask_set)
 
-                                    if id != "" and question != "" and seq != "":
-                                        question_string = '<E> '
-                                        if len(entity_mask) > 0:
-                                            for entity_key, entity_value in entity_mask.items():
-                                                if str(entity_value) != '':
-                                                    question_string += str(entity_value) + ' '
-                                        question_string += '</E> <R> '
-                                        if len(relation_mask) > 0:
-                                            for relation_key, relation_value in relation_mask.items():
-                                                if str(relation_value) != '':
-                                                    question_string += str(relation_value) + ' '
-                                        question_string += '</R> <T> '
-                                        if len(type_mask) > 0:
-                                            for type_key, type_value in type_mask.items():
-                                                if str(type_value) != '':
-                                                    question_string += str(type_value) + ' '
-                                        question_string += '</T> '
+                            if id != "" and question != "" and seq != "":
+                                question_string = '<E> '
+                                if len(entity_mask) > 0:
+                                    for entity_key, entity_value in entity_mask.items():
+                                        if str(entity_value) != '':
+                                            question_string += str(entity_value) + ' '
+                                question_string += '</E> <R> '
+                                if len(relation_mask) > 0:
+                                    for relation_key, relation_value in relation_mask.items():
+                                        if str(relation_value) != '':
+                                            question_string += str(relation_value) + ' '
+                                question_string += '</R> <T> '
+                                if len(type_mask) > 0:
+                                    for type_key, type_value in type_mask.items():
+                                        if str(type_value) != '':
+                                            question_string += str(type_value) + ' '
+                                question_string += '</T> '
 
-                                        question_token = str(question).lower().replace('?', '')
-                                        question_token = question_token.replace(',', ' ')
-                                        question_token = question_token.replace(':', ' ')
-                                        question_token = question_token.replace('(', ' ')
-                                        question_token = question_token.replace(')', ' ')
-                                        question_token = question_token.replace('"', ' ')
-                                        question_token = question_token.strip()
-                                        question_string += question_token
-                                        question_string = question_string.strip()
-                                        # question_tokens = question_string.strip().split(' ')
-                                        # question_tokens_set = set(question_tokens)
-                                        # questionSet = questionSet.union(question_tokens_set)
-                                        correct_item = WebQSP(id, question, seq, entity, relation, types, entity_mask,
-                                                              relation_mask, type_mask, mask_action_sequence_list,
-                                                              answerList, question_string, response_entities, orig_response_str)
-                                    # print(question)
-                                    # print(answer)
-                                    WebQSPList_Correct.append(id)
-                                    if id.startswith('WebQTrn'):
-                                        final_data_seq2seq_train.update(correct_item.obj_2_s2sjson())
-                                        final_data_RL_train.update(correct_item.obj_2_rljson())
-                                    else:
-                                        final_data_seq2seq_test.update(correct_item.obj_2_s2sjson())
-                                        final_data_RL_test.update(correct_item.obj_2_rljson())
-                                    final_data_seq2seq.update(correct_item.obj_2_s2sjson())
-                                else:
-                                    if b_print:
-                                        print('incorrect!', reward)
-                                        print(" ")
-                                    WebQSPList_Incorrect.append(id)
-                                    errorlist.append(id)
-                                    json_errorlist.append(q)
-
-                                total_reward += reward
-                                total_reward_jaccard += reward_jaccard
-                                total_reward_recall += reward_recall
-                                total_reward_precision += reward_precision
+                                question_token = str(question).lower().replace('?', '')
+                                question_token = question_token.replace(',', ' ')
+                                question_token = question_token.replace(':', ' ')
+                                question_token = question_token.replace('(', ' ')
+                                question_token = question_token.replace(')', ' ')
+                                question_token = question_token.replace('"', ' ')
+                                question_token = question_token.strip()
+                                question_string += question_token
+                                question_string = question_string.strip()
+                                # question_tokens = question_string.strip().split(' ')
+                                # question_tokens_set = set(question_tokens)
+                                # questionSet = questionSet.union(question_tokens_set)
+                                correct_item = WebQSP(id, question, seq, entity, relation, types, entity_mask,
+                                                      relation_mask, type_mask, mask_action_sequence_list,
+                                                      answerList, question_string, response_entities, orig_response_str)
+                            # print(question)
+                            # print(answer)
+                            WebQSPList_Correct.append(id)
+                            if id.startswith('WebQTrn'):
+                                final_data_seq2seq_train.update(correct_item.obj_2_s2sjson())
+                                final_data_RL_train.update(correct_item.obj_2_rljson())
                             else:
-                                no_x_list.append(id)
-                        except Exception as exception:
-                            print(exception)
-                            parse_error_list.append(id)
-                            pass
+                                final_data_seq2seq_test.update(correct_item.obj_2_s2sjson())
+                                final_data_RL_test.update(correct_item.obj_2_rljson())
+                            final_data_seq2seq.update(correct_item.obj_2_s2sjson())
+                        else:
+                            if b_print:
+                                print('incorrect!', reward)
+                                print(" ")
+                            WebQSPList_Incorrect.append(id)
+                            errorlist.append(id)
+                            json_errorlist.append(q)
+
+                        total_reward += reward
+                        total_reward_jaccard += reward_jaccard
+                        total_reward_recall += reward_recall
+                        total_reward_precision += reward_precision
+                    else:
+                        no_x_list.append({id:str(seq)})
+                except Exception as exception:
+                    print(exception)
+                    parse_error_list.append(id)
+                    pass
 
     questions_count = len(process_questions)
     print('all_count', all_count)
@@ -761,9 +765,15 @@ def process_webqsp_RL():
     fileObject.write(jsondata)
     fileObject.close()
 
+    # # result_list
+    # jsondata = json.dumps(result_list, indent=1)
+    # fileObject = open('result_list.json', 'w')
+    # fileObject.write(jsondata)
+    # fileObject.close()
+
     # result_list
-    jsondata = json.dumps(result_list, indent=1)
-    fileObject = open('result_list.json', 'w')
+    jsondata = json.dumps(errorlist, indent=1)
+    fileObject = open('errorlist.json', 'w')
     fileObject.write(jsondata)
     fileObject.close()
 
@@ -1292,10 +1302,10 @@ def testInputData():
 
 if __name__ == "__main__":
     print("start process webqsp dataset")
-    # process_webqsp_RL()   # dataset to mask
+    process_webqsp_RL()   # dataset to mask
 
     # getTrainingDatasetForPytorch_seq2seq_webqsp() # PT.train
-    getTrainingDatasetForPytorch_seq2seq_webqsp_novar() # PT.train
+    # getTrainingDatasetForPytorch_seq2seq_webqsp_novar() # PT.train
 
     # getTrainingDatasetForRlWebQSP()
     # getShareVocabularyForWebQSP() # share.question
