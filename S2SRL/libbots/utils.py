@@ -308,6 +308,30 @@ def calc_adaptative_reward(answer, qa_info):
                     F1 = 2 * precision * recall / (recall + precision) if (precision!=0 and recall!=0) else 0
                     return (R_type * (W_1 + W_2 * F1))
 
+# Compute proximity for Curriculum-guided Hindsight Experience Replay.
+def calculate_proximity(action_tokens, action_buffer):
+    max_proximity = 0.0
+    if action_buffer is None:
+        return max_proximity
+    else:
+        for action_in_buffer in action_buffer:
+            proximity = levenshtein_similarity(action_tokens, action_in_buffer)
+            if proximity > max_proximity:
+                max_proximity = proximity
+        return max_proximity
+
+# Compute diversity for Curriculum-guided Hindsight Experience Replay.
+def calculate_diversity(action_tokens, action_buffer):
+    beta = 1.0
+    similarity_sum = 0.0
+    if action_buffer is None:
+        return beta - similarity_sum
+    else:
+        for action_in_buffer in action_buffer:
+            similarity_sum += levenshtein_similarity(action_tokens, action_in_buffer)
+        diversity = max(beta - similarity_sum / float(len(action_buffer)), 0.0)
+        return diversity
+
 def calc_bleu(cand_seq, ref_seq):
     return calc_bleu_many(cand_seq, [ref_seq])
 
@@ -319,7 +343,7 @@ def untokenize(words):
 
 # To judge whether s1 and s2 are same lists or not.
 def duplicate(s1,s2):
-    compare = lambda a,b: len(a)==len(b) and len(a)==sum([1 for i,j in zip(a,b) if i==j])
+    compare = lambda a, b: len(a) == len(b) and len(a) == sum([1 for i, j in zip(a, b) if i == j])
     return compare(s1, s2)
 
 # To compute the Jaccard score between action sequences s1 and s2.
