@@ -15,6 +15,7 @@ import torch.nn.functional as F
 import time
 import ptan
 import json
+import math
 
 SAVES_DIR = "../data/saves"
 
@@ -26,11 +27,16 @@ MAX_TOKENS_INT = 43
 TRAIN_RATIO = 0.985
 GAMMA = 0.05
 MAX_MEMORY_BUFFER_SIZE = 10
+# ALPHA is the bonus scalar.
+# The value of α depends on the scale of task rewards.
+ALPHA = 0.1
+ETA = 0.08
+LAMBDA_0 = 0.1
 
 DIC_PATH = '../data/auto_QA_data/share.question'
 DIC_PATH_INT = '../data/auto_QA_data/share_INT.question'
 # DIC_PATH_INT = '../data/auto_QA_data/share_944K_INT.question'
-TRAIN_QUESTION_ANSWER_PATH = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new_2k.question'
+TRAIN_QUESTION_ANSWER_PATH = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new.question'
 TRAIN_QUESTION_ANSWER_PATH_INT = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new_INT.question'
 log = logging.getLogger("train")
 
@@ -63,13 +69,14 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_1%_att=0_withINT_w2v=300/pre_bleu_0.956_43.dat', '-n=rl_TR_1%_batch8_att=0_withINT_test', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=300', '-beam_width=10']
+    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_1%_att=0_withINT_w2v=300/pre_bleu_0.956_43.dat', '-n=rl_TR_1%_batch8_att=0_withINT_CHER_test', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=300', '-beam_width=10', '--CHER']
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. Empty string to train on full processDataset")
     parser.add_argument("--cuda", action='store_true', default=False, help="Enable cuda")
     parser.add_argument("-n", "--name", required=True, help="Name of the run")
     parser.add_argument("-l", "--load", required=True, help="Load the pre-trained model whereby continue training the RL mode")
+    parser.add_argument("--memory_buffer_json", default=None, help="Load the recorded action memory for CHER training")
     # Number of decoding samples.
     parser.add_argument("-s", "--samples", type=int, default=4, help="Count of samples in prob mode")
     # The size of the beam search.
@@ -80,6 +87,8 @@ if __name__ == "__main__":
     # If a = true, 1 or yes, the adaptive reward is used. Otherwise 0-1 reward is used.
     parser.add_argument("-a", "--adaptive", type=lambda x: (str(x).lower() in ['true', '1', 'yes']), help="0-1 or adaptive reward")
     parser.add_argument("--disable-skip", default=False, action='store_true', help="Disable skipping of samples with high argmax BLEU")
+    parser.add_argument("--CHER", default=False, action='store_true',
+                        help="Curriculum-guided Hindsight Experience Replay")
     # Choose the function to compute reward (0-1 or adaptive reward).
     # If a = true, 1 or yes, the adaptive reward is used. Otherwise 0-1 reward is used.
     parser.add_argument("--att", type=lambda x: (str(x).lower() in ['true', '1', 'yes']),
@@ -117,14 +126,22 @@ if __name__ == "__main__":
     log.info("Train set has %d phrases, test %d", len(train_data), len(test_data))
     log.info("Batch size is %d", BATCH_SIZE)
     log.info("Beam search size is %d", args.beam_width)
-    if (args.att):
+    if args.att:
         log.info("Using attention mechanism to train the SEQ2SEQ model...")
     else:
         log.info("Train the SEQ2SEQ model without attention mechanism...")
-    if (args.lstm):
+    if args.lstm:
         log.info("Using LSTM mechanism to train the SEQ2SEQ model...")
     else:
         log.info("Using RNN mechanism to train the SEQ2SEQ model...")
+    if args.CHER:
+        log.info("Using CHER mechanism to train the SEQ2SEQ model...")
+
+    memory_buffer = {}
+    if args.memory_buffer_json is not None:
+        log.info("Loading the stored action memory from %s...", str(args.memory_buffer_json))
+        with open(args.memory_buffer_json, 'r', encoding="UTF-8") as load_f:
+            memory_buffer = json.load(load_f)
 
     # Index -> word.
     rev_emb_dict = {idx: word for word, idx in emb_dict.items()}
@@ -160,7 +177,6 @@ if __name__ == "__main__":
 
         # The memory buffer used to maintain the hindsight experience.
         # The key to the dict is the question ID and the value is the previous actions that could yield some reward.
-        memory_buffer = {}
 
         # Loop in epochs.
         for epoch in range(MAX_EPOCHS):
@@ -171,6 +187,11 @@ if __name__ == "__main__":
             # skipped_samples = 0
             true_reward_argmax = []
             true_reward_sample = []
+
+            if args.CHER:
+                # Compute weights for proximity and diversity in each epoch.
+                # λ = min{1, (1+η)^γ * λ_0} (lambda = min{1, (1+eta)^epochs * lambda_0})
+                lambda_value = min(1.0, float(math.pow(1.0 + ETA, float(epoch) + 1.0) * LAMBDA_0))
 
             for batch in data.iterate_batches(train_data, BATCH_SIZE):
                 batch_idx += 1
@@ -202,7 +223,7 @@ if __name__ == "__main__":
                     # print (input_tokens)
                     # Get IDs of reference sequences' tokens corresponding to idx-th input sequence in batch.
                     qa_info = output_batch[idx]
-                    print("%s is training..." % (qa_info['qid']))
+                    # print("%s is training..." % (qa_info['qid']))
                     # print (qa_info['qid'])
                     # # Get the (two-layer) hidden state of encoder of idx-th input sequence in batch.
                     item_enc = net.get_encoded_item(enc, idx)
@@ -237,29 +258,14 @@ if __name__ == "__main__":
 
                     sample_logits_list, action_sequence_list = net.beam_decode(hid=item_enc, seq_len=data.MAX_TOKENS, context=context[idx], start_token=beg_token, stop_at_token=end_token, beam_width=args.beam_width, topk=args.samples)
 
-                    # action_memory = list()
+                    qid = qa_info['qid']
+                    action_memory = list()
                     for sample_index in range(args.samples):
                         # 'r_sample' is the list of out_logits list and 'actions' is the list of output tokens.
                         # The output tokens are sampled following probability by using chain_sampling.
                         actions = action_sequence_list[sample_index]
                         r_sample = sample_logits_list[sample_index]
 
-                        # r_sample, actions = net.decode_chain_sampling(item_enc, beg_embedding, data.MAX_TOKENS, context[idx], stop_at_token=end_token)
-                        # total_samples += 1
-
-                        # Omit duplicate action sequence to decrease the computing time and to avoid the case that
-                        # the probability of such kind of duplicate action sequences would be increased redundantly and abnormally.
-                        # duplicate_flag = False
-                        # if len(action_memory) > 0:
-                        #     for temp_list in action_memory:
-                        #         if utils.duplicate(temp_list, actions):
-                        #             duplicate_flag = True
-                        #             break
-                        # if not duplicate_flag:
-                        #     action_memory.append(actions)
-                        # else:
-                        #     skipped_samples += 1
-                        #     continue
                         # Show what the output action sequence is.
                         action_tokens = []
                         for temp_idx in actions:
@@ -270,27 +276,16 @@ if __name__ == "__main__":
                         sample_reward = utils.calc_True_Reward(action_tokens, qa_info, args.adaptive)
                         # sample_reward = random.random()
 
-                        if sample_reward > 0.0:
-                            qid = qa_info['qid']
-                            if qid not in memory_buffer:
-                                q_memory = list()
-                                q_memory.append(action_tokens)
-                                memory_buffer[qid] = q_memory
-                            else:
-                                q_memory = memory_buffer[qid]
-                                duplicate_flag = False
-                                if len(q_memory) > 0:
-                                    for temp_list in q_memory:
-                                        if utils.duplicate(temp_list, action_tokens):
-                                            duplicate_flag = True
-                                            break
-                                    if not duplicate_flag:
-                                        # If buffer is full, remove one element randomly.
-                                        if len(q_memory) == MAX_MEMORY_BUFFER_SIZE:
-                                            random_index = randrange(0, len(q_memory))
-                                            q_memory.pop(random_index)
-                                        q_memory.append(action_tokens)
-                                        memory_buffer[qid] = q_memory
+                        if args.CHER:
+                            if sample_reward > 0.0:
+                                action_memory.append(action_tokens)
+                            # Compute reward bonus.
+                            action_buffer = memory_buffer[qid] if qid in memory_buffer else None
+                            F_proximity = utils.calculate_proximity(action_tokens, action_buffer)
+                            F_diversity = utils.calculate_diversity(action_tokens, action_buffer)
+                            reward_bonus = lambda_value * F_proximity + (1.0 - lambda_value) * F_diversity
+                            # Using scalar α to scale the bonus.
+                            regularized_reward_bonus = ALPHA * reward_bonus
 
                         if not dial_shown:
                             log.info("Sample: %s, reward=%.4f",
@@ -310,10 +305,37 @@ if __name__ == "__main__":
                         # else:
                         #     net_advantages.extend([sample_reward - argmax_reward] * len(actions))
 
-                        net_advantages.extend([sample_reward - argmax_reward] * len(actions))
+                        if args.CHER:
+                            net_advantages.extend([sample_reward - argmax_reward + regularized_reward_bonus]
+                                                  * len(actions))
+                        else:
+                            net_advantages.extend([sample_reward - argmax_reward] * len(actions))
                         true_reward_sample.append(sample_reward)
+
+                    if args.CHER and len(action_memory) > 0:
+                        if qid not in memory_buffer:
+                            memory_buffer[qid] = action_memory
+                        else:
+                            q_memory = memory_buffer[qid]
+                            for action_tokens in action_memory:
+                                duplicate_flag = False
+                                if len(q_memory) > 0:
+                                    for temp_list in q_memory:
+                                        if utils.duplicate(temp_list, action_tokens):
+                                            duplicate_flag = True
+                                            break
+                                    if not duplicate_flag:
+                                        # If buffer is full, remove one element randomly.
+                                        if len(q_memory) == MAX_MEMORY_BUFFER_SIZE:
+                                            random_index = randrange(0, len(q_memory))
+                                            q_memory.pop(random_index)
+                                        q_memory.append(action_tokens)
+                                        memory_buffer[qid] = q_memory
+                                else:
+                                    q_memory.append(action_tokens)
+                                    memory_buffer[qid] = q_memory
                     dial_shown = True
-                    log.info("Epoch %d, Batch %d, Sample %d: %s is trained!", epoch, batch_count, idx, qa_info['qid'])
+                    # log.info("Epoch %d, Batch %d, Sample %d: %s is trained!", epoch, batch_count, idx, qa_info['qid'])
 
                 if not net_policies:
                     continue
@@ -361,6 +383,8 @@ if __name__ == "__main__":
                 tb_tracker.track("loss_policy", loss_policy_v, batch_idx)
                 tb_tracker.track("loss_total", loss_v, batch_idx)
 
+                log.info("Epoch %d, Batch %d is trained!", epoch, batch_count)
+
             # After one epoch, compute the bleus for samples in test dataset.
             true_reward_test = run_test(test_data, net, rev_emb_dict, end_token, device)
             # After one epoch, get the average of the decode_chain_argmax bleus for samples in training dataset.
@@ -382,12 +406,13 @@ if __name__ == "__main__":
             # # The parameters are stored after each epoch.
             torch.save(net.state_dict(), os.path.join(saves_path, "epoch_%03d_%.3f_%.3f.dat" % (epoch, float(true_reward_armax), true_reward_test)))
 
-            # In case the training is interrupted, record the memory buffer in each epoch.
-            json_path = os.path.join(saves_path, "action_memory_epoch_%03d_%.3f_%.3f.json" % (
-            epoch, float(true_reward_armax), true_reward_test))
-            fw = open(json_path, 'w', encoding="UTF-8")
-            fw.writelines(json.dumps(memory_buffer, indent=1, ensure_ascii=False))
-            fw.close()
+            # Record the memory buffer for each epoch in case that the training is interrupted.
+            if args.CHER:
+                json_path = os.path.join(saves_path, "action_memory_epoch_%03d_%.3f_%.3f.json" % (
+                    epoch, float(true_reward_armax), true_reward_test))
+                fw = open(json_path, 'w', encoding="UTF-8")
+                fw.writelines(json.dumps(memory_buffer, indent=1, ensure_ascii=False))
+                fw.close()
 
         time_end = time.time()
         log.info("Training time is %.3fs." % (time_end - time_start))
