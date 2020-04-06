@@ -61,7 +61,9 @@ def run_test(test_data, net, rev_emb_dict, end_token, device="cuda"):
             if temp_idx in rev_emb_dict and rev_emb_dict.get(temp_idx) != '#END':
                 action_tokens.append(str(rev_emb_dict.get(temp_idx)).upper())
         # Using 0-1 reward to compute accuracy.
-        argmax_reward_sum += float(utils.calc_True_Reward(action_tokens, p2, False))
+        reward = utils.calc_True_Reward(action_tokens, p2, False)
+        # reward = random.random()
+        argmax_reward_sum += float(reward)
         argmax_reward_count += 1
     return float(argmax_reward_sum) / float(argmax_reward_count)
 
@@ -69,7 +71,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_1%_att=0_withINT_w2v=300/pre_bleu_0.956_43.dat', '-n=rl_TR_1%_batch8_att=0_withINT_CHER_test', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=300', '-beam_width=10', '--CHER']
+    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_1%_att=0_withINT_w2v=300/pre_bleu_0.956_43.dat', '-n=rl_TR_1%_batch8_att=0_withINT_CHER_test', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=300', '-beam_width=10', '--CHER', '--MonteCarlo']
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. Empty string to train on full processDataset")
@@ -98,6 +100,7 @@ if __name__ == "__main__":
     # If false, the embedding tensors in the model do not need to be trained.
     parser.add_argument('--embed-grad', action='store_false', help='optimizing word embeddings when training')
     parser.add_argument('--int', action='store_true', help='training model with INT mask information')
+    parser.add_argument("--MonteCarlo", action='store_true', default=False, help="using Monte Carlo algorithm for REINFORCE")
     args = parser.parse_args()
     device = torch.device("cuda" if args.cuda else "cpu")
     log.info("Device info: %s", str(device))
@@ -136,6 +139,8 @@ if __name__ == "__main__":
         log.info("Using RNN mechanism to train the SEQ2SEQ model...")
     if args.CHER:
         log.info("Using CHER mechanism to train the SEQ2SEQ model...")
+    if args.MonteCarlo:
+        log.info("Using Monte Carlo algorithm for Policy Gradient...")
 
     memory_buffer = {}
     if args.memory_buffer_json is not None:
@@ -213,6 +218,7 @@ if __name__ == "__main__":
                 net_policies = []
                 net_actions = []
                 net_advantages = []
+                net_losses = []
                 # Transform ID to embedding.
                 beg_embedding = net.emb(beg_token)
                 beg_embedding = beg_embedding.cuda()
@@ -260,6 +266,12 @@ if __name__ == "__main__":
 
                     qid = qa_info['qid']
                     action_memory = list()
+
+                    # The data for each task in a batch of tasks.
+                    inner_net_policies = []
+                    inner_net_actions = []
+                    inner_net_advantages = []
+
                     for sample_index in range(args.samples):
                         # 'r_sample' is the list of out_logits list and 'actions' is the list of output tokens.
                         # The output tokens are sampled following probability by using chain_sampling.
@@ -291,8 +303,16 @@ if __name__ == "__main__":
                             log.info("Sample: %s, reward=%.4f",
                                      utils.untokenize(data.decode_words(actions, rev_emb_dict)), sample_reward)
 
-                        net_policies.append(r_sample)
-                        net_actions.extend(actions)
+                        if args.MonteCarlo:
+                            # Record the data for each task in a batch.
+                            inner_net_policies.append(r_sample)
+                            inner_net_actions.extend(actions)
+
+                        else:
+                            # Record the data for all tasks in a batch.
+                            net_policies.append(r_sample)
+                            net_actions.extend(actions)
+
                         # Regard argmax_bleu calculated from decode_chain_argmax as baseline used in self-critic.
                         # Each token has same reward as 'sample_bleu - argmax_bleu'.
                         # [x] * y: stretch 'x' to [1*y] list in which each element is 'x'.
@@ -306,12 +326,20 @@ if __name__ == "__main__":
                         #     net_advantages.extend([sample_reward - argmax_reward] * len(actions))
 
                         if args.CHER:
-                            net_advantages.extend([sample_reward - argmax_reward + regularized_reward_bonus]
-                                                  * len(actions))
+                            advantages = [sample_reward - argmax_reward + regularized_reward_bonus] * len(actions)
+                            if args.MonteCarlo:
+                                inner_net_advantages.extend(advantages)
+                            else:
+                                net_advantages.extend(advantages)
                         else:
-                            net_advantages.extend([sample_reward - argmax_reward] * len(actions))
+                            advantages = [sample_reward - argmax_reward] * len(actions)
+                            if args.MonteCarlo:
+                                inner_net_advantages.extend(advantages)
+                            else:
+                                net_advantages.extend(advantages)
                         true_reward_sample.append(sample_reward)
 
+                    # Update memory_buffer.
                     if args.CHER and len(action_memory) > 0:
                         if qid not in memory_buffer:
                             memory_buffer[qid] = action_memory
@@ -336,37 +364,56 @@ if __name__ == "__main__":
                                     memory_buffer[qid] = q_memory
                     dial_shown = True
                     # log.info("Epoch %d, Batch %d, Sample %d: %s is trained!", epoch, batch_count, idx, qa_info['qid'])
+                    # Compute the loss for each task in a batch.
+                    if args.MonteCarlo:
+                        inner_policies_v = torch.cat(inner_net_policies).to(device)
+                        # Indices of all output tokens whose size is 1 * N;
+                        inner_actions_t = torch.LongTensor(inner_net_actions).to(device)
+                        # All output tokens reward whose size is 1 *pack_batch N;
+                        inner_adv_v = torch.FloatTensor(inner_net_advantages).to(device)
+                        # Compute log(softmax(logits)) of all output tokens in size of N * output vocab size;
+                        inner_log_prob_v = F.log_softmax(inner_policies_v, dim=1).to(device)
+                        # Q_1 = Q_2 =...= Q_n = BLEU(OUT,REF);
+                        # ▽J = Σ_n[Q▽logp(T)] = ▽Σ_n[Q*logp(T)] = ▽[Q_1*logp(T_1)+Q_2*logp(T_2)+...+Q_n*logp(T_n)];
+                        # log_prob_v[range(len(net_actions)), actions_t]: for each output, get the output token's log(softmax(logits)).
+                        # adv_v * log_prob_v[range(len(net_actions)), actions_t]:
+                        # get Q * logp(T) for all tokens of all decode_chain_sampling samples in size of 1 * N;
+                        inner_log_prob_actions_v = inner_adv_v * inner_log_prob_v[range(len(inner_net_actions)), inner_actions_t].to(device)
+                        # For the optimizer is Adam (Adaptive Moment Estimation) which is a optimizer used for gradient descent.
+                        # Therefore, to maximize ▽J (log_prob_actions_v) is to minimize -▽J.
+                        # .mean() is to calculate Monte Carlo sampling.
+                        inner_loss_policy_v = -inner_log_prob_actions_v.mean().to(device)
+                        # Record the loss for each task in a batch.
+                        net_losses.append(inner_loss_policy_v)
 
-                if not net_policies:
+                if not net_policies and not net_losses:
                     continue
 
                 # Data for decode_chain_sampling samples and the number of such samples is the same as args.samples parameter.
-                # Logits of all output tokens whose size is N * output vocab size; N is the number of output tokens of decode_chain_sampling samples.
-                policies_v = torch.cat(net_policies)
-                policies_v = policies_v.cuda()
-                # Indices of all output tokens whose size is 1 * N;
-                actions_t = torch.LongTensor(net_actions).to(device)
-                actions_t = actions_t.cuda()
-                # All output tokens reward whose size is 1 *pack_batch N;
-                adv_v = torch.FloatTensor(net_advantages).to(device)
-                adv_v = adv_v.cuda()
-                # Compute log(softmax(logits)) of all output tokens in size of N * output vocab size;
-                log_prob_v = F.log_softmax(policies_v, dim=1)
-                log_prob_v = log_prob_v.cuda()
-                # Q_1 = Q_2 =...= Q_n = BLEU(OUT,REF);
-                # ▽J = Σ_n[Q▽logp(T)] = ▽Σ_n[Q*logp(T)] = ▽[Q_1*logp(T_1)+Q_2*logp(T_2)+...+Q_n*logp(T_n)];
-                # log_prob_v[range(len(net_actions)), actions_t]: for each output, get the output token's log(softmax(logits)).
-                # adv_v * log_prob_v[range(len(net_actions)), actions_t]:
-                # get Q * logp(T) for all tokens of all decode_chain_sampling samples in size of 1 * N;
-                log_prob_actions_v = adv_v * log_prob_v[range(len(net_actions)), actions_t]
-                log_prob_actions_v = log_prob_actions_v.cuda()
-                # For the optimizer is Adam (Adaptive Moment Estimation) which is a optimizer used for gradient descent.
-                # Therefore, to maximize ▽J (log_prob_actions_v) is to minimize -▽J.
-                # .mean() is to calculate Monte Carlo sampling.
-                # todo: sum or mean? The actions for one question should be summed up first,
-                #  then average each question's summed value.
-                loss_policy_v = -log_prob_actions_v.mean()
-                loss_policy_v = loss_policy_v.cuda()
+                if args.MonteCarlo:
+                    batch_net_losses = torch.stack(net_losses).to(device)
+                    # .mean() is utilized to calculate Mini-Batch Gradient Descent.
+                    loss_policy_v = batch_net_losses.mean().to(device)
+
+                else:
+                    # Logits of all output tokens whose size is N * output vocab size; N is the number of output tokens of decode_chain_sampling samples.
+                    policies_v = torch.cat(net_policies).to(device)
+                    # Indices of all output tokens whose size is 1 * N;
+                    actions_t = torch.LongTensor(net_actions).to(device)
+                    # All output tokens reward whose size is 1 *pack_batch N;
+                    adv_v = torch.FloatTensor(net_advantages).to(device)
+                    # Compute log(softmax(logits)) of all output tokens in size of N * output vocab size;
+                    log_prob_v = F.log_softmax(policies_v, dim=1).to(device)
+                    # Q_1 = Q_2 =...= Q_n = BLEU(OUT,REF);
+                    # ▽J = Σ_n[Q▽logp(T)] = ▽Σ_n[Q*logp(T)] = ▽[Q_1*logp(T_1)+Q_2*logp(T_2)+...+Q_n*logp(T_n)];
+                    # log_prob_v[range(len(net_actions)), actions_t]: for each output, get the output token's log(softmax(logits)).
+                    # adv_v * log_prob_v[range(len(net_actions)), actions_t]:
+                    # get Q * logp(T) for all tokens of all decode_chain_sampling samples in size of 1 * N;
+                    log_prob_actions_v = adv_v * log_prob_v[range(len(net_actions)), actions_t].to(device)
+                    # For the optimizer is Adam (Adaptive Moment Estimation) which is a optimizer used for gradient descent.
+                    # Therefore, to maximize ▽J (log_prob_actions_v) is to minimize -▽J.
+                    # .mean() is used to calculate Monte Carlo sampling.
+                    loss_policy_v = -log_prob_actions_v.mean().to(device)
 
                 loss_v = loss_policy_v
                 # loss.backward() computes dloss/dx for every parameter x which has requires_grad=True.
@@ -379,7 +426,8 @@ if __name__ == "__main__":
                 # x += -lr * x.grad
                 optimiser.step()
 
-                tb_tracker.track("advantage", adv_v, batch_idx)
+                if not args.MonteCarlo:
+                    tb_tracker.track("advantage", adv_v, batch_idx)
                 tb_tracker.track("loss_policy", loss_policy_v, batch_idx)
                 tb_tracker.track("loss_total", loss_v, batch_idx)
 
