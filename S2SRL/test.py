@@ -21,3 +21,18 @@ if __name__ == "__main__":
         for batch in data.iterate_batches(list, 5):
             print(batch)
         print(str(epoch)+'------------------------------------')
+
+        device = torch.device("cuda")
+        a = torch.tensor(1.0).to(device)
+        b = torch.tensor(2.0).to(device)
+        temp_list = [a, b]
+        print(temp_list)
+        temp_list = torch.stack(temp_list).to(device)
+        print(temp_list)
+        loss = temp_list.mean().to(device)
+        print(loss)
+
+        temp = []
+        if not temp:
+            print('empty')
+
