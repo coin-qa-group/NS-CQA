@@ -65,18 +65,23 @@ class Symbolics():
                 # A3: Bool(e)
                 elif ("A3" in symbolic):
                     try:
-                        bool_temp_result = self.is_bool(e)
-                        # dict
-                        if type(self.answer) == type({}):
-                            if '|BOOL_RESULT|' in self.answer:
-                                self.answer['|BOOL_RESULT|'].append(bool_temp_result)
-                            else:
-                                temp = [bool_temp_result]
-                                self.answer.setdefault('|BOOL_RESULT|', temp)
+                        if not e:
+                            self.answer = {}
+                        elif not e.startswith('Q'):
+                            self.answer = {}
+                        else:
+                            bool_temp_result = self.is_bool(e)
+                            # dict
+                            if type(self.answer) == type({}):
+                                if '|BOOL_RESULT|' in self.answer:
+                                    self.answer['|BOOL_RESULT|'].append(bool_temp_result)
+                                else:
+                                    temp = [bool_temp_result]
+                                    self.answer.setdefault('|BOOL_RESULT|', temp)
                     except:
-                        # print('ERROR! The action is Bool(%s).' %e)
-                        # print('The sequence is:')
-                        # print(self.seq)
+                        print('ERROR! The action is Bool(%s).' %e)
+                        print('The sequence is:')
+                        print(self.seq)
                         self.answer = {}
                     finally:
                         self.print_answer()
@@ -107,9 +112,9 @@ class Symbolics():
                     try:
                         self.answer = self.greater_than(e,r,t)
                     except:
-                        # print('ERROR! The action is GreaterThan(%s,%s,%s).' % (e,r,t))
-                        # print('The sequence is:')
-                        # print(self.seq)
+                        print('ERROR! The action is GreaterThan(%s,%s,%s).' % (e,r,t))
+                        print('The sequence is:')
+                        print(self.seq)
                         self.answer = {}
                     finally:
                         self.print_answer()
@@ -557,7 +562,7 @@ class Symbolics():
                             number = len(content[N])
                         else:
                             number = 0
-            # If N is noe digit nor started with 'Q', the number is assumed as 0.
+            # If N is not digit nor started with 'Q', the number is assumed as 0.
             if type(self.answer) == type({}):
                 if number == 0 or 1< number <=5:
                     for k, v in self.answer.items():

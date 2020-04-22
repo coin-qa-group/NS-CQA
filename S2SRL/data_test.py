@@ -56,6 +56,7 @@ if __name__ == "__main__":
     log.info("Open: %s", '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.action')
     if args.beam_search:
         log.info("Inferring with beam search...")
+        log.info("Beam search width is %d", args.beam_width)
     else:
         log.info("Inferring with argmax search...")
     if args.int:
