@@ -38,7 +38,7 @@ def calc_True_Reward(action_sequence, qa_info, adaptive_flag = False):
             # If the action could not find the corresponding mask in the dict,
             # then the predicted action is not semantically correct, the reward should be returned as -1.0.
             if not correct_flag:
-                print('%s: %s is wrong!' % (str(qa_info['qid']), str(action_sequence)))
+                # print('%s: %s is wrong!' % (str(qa_info['qid']), str(action_sequence)))
                 return -1.0
         new_action.append(act)
     symbolic_seq = list2dict(new_action)
@@ -146,7 +146,7 @@ def calc_01_reward(answer, qa_info):
         return true_reward
 
     # For boolean, the returned answer is a list.
-    elif qid.startswith("Verification (Boolean) (All)_"):
+    elif qid.startswith("Verification (Boolean) (All)_") or qid.startswith("Verification(Boolean)(All)"):
         if answer == {}: true_reward = -1.0
         # To judge the returned answers are in dict format or boolean format.
         elif type(answer) == dict:
@@ -233,7 +233,7 @@ def calc_adaptative_reward(answer, qa_info):
         return (R_type * (W_1 + W_2 * R_answer))
 
     # For boolean, the returned answer is a list.
-    if qid.startswith("Verification (Boolean) (All)_"):
+    if qid.startswith("Verification (Boolean) (All)_") or qid.startswith("Verification(Boolean)(All)"):
         if answer == {}: return -1.0
         # To judge the returned answers are in dict format or boolean format.
         elif type(answer) == dict:
