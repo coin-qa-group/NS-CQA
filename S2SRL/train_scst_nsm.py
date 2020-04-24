@@ -20,7 +20,7 @@ import math
 SAVES_DIR = "../data/saves"
 
 BATCH_SIZE = 8
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-3
 MAX_EPOCHS = 30
 MAX_TOKENS = 40
 MAX_TOKENS_INT = 43
@@ -30,8 +30,6 @@ MAX_MEMORY_BUFFER_SIZE = 10
 # ALPHA is the bonus scalar.
 # The value of α depends on the scale of task rewards.
 ALPHA = 0.1
-ETA = 0.08
-LAMBDA_0 = 0.1
 
 DIC_PATH = '../data/auto_QA_data/share.question'
 DIC_PATH_INT = '../data/auto_QA_data/share_INT.question'
@@ -74,8 +72,8 @@ if __name__ == "__main__":
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
     sys.argv = ['train_scst_nsm.py', '--cuda',
-                '-l=../data/saves/crossent_1%_att=0_withINT_w2v=300/pre_bleu_0.956_43.dat',
-                '-n=rl_TR_1%_batch8_att=0_withINT_CHER_test', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int',
+                '-l=../data/saves/crossent_1%_att=0_withINT_w2v=300/epoch_020_0.996_0.953.dat',
+                '-n=rl_TR_1%_batch8_att=0_withINT_NSM', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int',
                 '-w2v=300', '--beam_width=10', '--NSM']
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
@@ -183,11 +181,7 @@ if __name__ == "__main__":
         batch_idx = 0
         batch_count = 0
         best_true_reward = None
-
         time_start = time.time()
-
-        # The memory buffer used to maintain the hindsight experience.
-        # The key to the dict is the question ID and the value is the previous actions that could yield some reward.
 
         # Loop in epochs.
         for epoch in range(MAX_EPOCHS):
