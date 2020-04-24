@@ -31,6 +31,179 @@ from random import shuffle
 special_counting_characters = {'-','|','&'}
 special_characters = {'(',')','-','|','&'}
 
+# Get the training data for NSM to training by REINFORCE with True Reward.
+def getTrainingDatasetForNSM(percentage, withint):
+    # Create target directory & all intermediate directories if don't exists
+    dirName = '../../data/auto_QA_data/nsm_mask_even_' + percentage
+    if not os.path.exists(dirName):
+        os.makedirs(dirName)
+        print("Directory ", dirName, " Created ")
+    else:
+        print("Directory ", dirName, " already exists")
+    if withint:
+        path1 = dirName + '/RL_train_TR_INT.question'
+        path2 = dirName + '/RL_test_TR_INT.question'
+        path3 = '../../data/auto_QA_data/CSQA_DENOTATIONS_full_INT.json'
+        path4 = '../../data/auto_QA_data/CSQA_ANNOTATIONS_full_INT.json'
+        path5 = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test_INT.json'
+    else:
+        path1 = dirName + '/RL_train_TR.question'
+        path2 = dirName + '/RL_test_TR.question'
+        path3 = '../../data/auto_QA_data/CSQA_DENOTATIONS_full.json'
+        path4 = '../../data/auto_QA_data/CSQA_ANNOTATIONS_full.json'
+        path5 = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json'
+
+    dict_list = {}
+    with open(path4, 'r', encoding="UTF-8") as load_f_annotations, open(path3, 'r', encoding="UTF-8") as load_f_denotations, open(path5, 'r', encoding="UTF-8") as test_load_f:
+        # Load annotations.
+        anotation_load_dict = json.load(load_f_annotations)
+        list_of_anotation_load_dict = list(anotation_load_dict.items())
+        random.seed(SEED)
+        random.shuffle(list_of_anotation_load_dict)
+        anotation_load_dict = dict(list_of_anotation_load_dict)
+
+        # Load denotations.
+        denotation_load_dict = json.load(load_f_denotations)
+        fwtrain = open(path1, 'w', encoding="UTF-8")
+        fwtest = open(path2, 'w', encoding="UTF-8")
+
+        # Load test data for boolean category.
+        test_load_dict = json.load(test_load_f)
+
+        count_dict = {'simple_': 0, 'logical_': 0, 'quantative_': 0, 'count_': 0, 'bool_': 0, 'comp_': 0, 'compcount_': 0, 'compcountappro_': 0, 'compappro_': 0}
+        count = 0
+        for key, value in anotation_load_dict.items():
+            try:
+                actions = eval(str(value['mask_action_sequence_list']))
+            except SyntaxError:
+                pass
+            if len(actions) > 0:
+                if 'simple_' in key and count_dict['simple_'] < CATEGORY_SIZE:
+                    count_dict['simple_'] = count_dict['simple_'] + 1
+                elif 'logical_' in key and count_dict['logical_'] < CATEGORY_SIZE:
+                    count_dict['logical_'] = count_dict['logical_'] + 1
+                elif 'quantative_' in key and count_dict['quantative_'] < CATEGORY_SIZE:
+                    count_dict['quantative_'] = count_dict['quantative_'] + 1
+                elif 'count_' in key and 'compcount_' not in key and count_dict['count_'] < CATEGORY_SIZE:
+                    count_dict['count_'] = count_dict['count_'] + 1
+                elif 'bool_' in key and count_dict['bool_'] < CATEGORY_SIZE:
+                    count_dict['bool_'] = count_dict['bool_'] + 1
+                elif 'boolean_' in key and count_dict['bool_'] < CATEGORY_SIZE:
+                    count_dict['bool_'] = count_dict['bool_'] + 1
+                elif 'comp_' in key and count_dict['comp_'] < COMP_SIZE:
+                    count_dict['comp_'] = count_dict['comp_'] + 1
+                elif 'compcount_' in key and count_dict['compcount_'] < COMP_COUNT_SIZE:
+                    count_dict['compcount_'] = count_dict['compcount_'] + 1
+                elif 'compcountappro_' in key and count_dict['compcountappro_'] < COMP_COUNT_APPRO_SIZE:
+                    count_dict['compcountappro_'] = count_dict['compcountappro_'] + 1
+                elif 'compappro_' in key and count_dict['compappro_'] < COMP_APPRO_SIZE:
+                    count_dict['compappro_'] = count_dict['compappro_'] + 1
+                else:
+                    continue
+                action_string = ''
+                action = actions[0]
+                for temp_dict in action:
+                    for temp_key, temp_value in temp_dict.items():
+                        action_string += temp_key + ' ( '
+                        for token in temp_value:
+                            if '-' in token:
+                                token = '- ' + token.replace('-', '')
+                            action_string += str(token) + ' '
+                        action_string += ') '
+                question_token = str(value['question'])
+                temp_flag = False
+                for key, value in denotation_load_dict.items():
+                    orig_response, question = "", ""
+                    try:
+                        orig_response = value['orig_response']
+                        question = value['question']
+                    except SyntaxError:
+                        pass
+                    if len(orig_response) > 0 and len(question) > 0 and question == question_token:
+                        value['pseudo_gold_program'] = action_string
+                        if 'response_bools' not in value:
+                            value['response_bools'] = []
+                        dict_list[key] = value
+                        count += 1
+                        temp_flag = True
+                        break
+                if not temp_flag:
+                    for key, value in test_load_dict.items():
+                        orig_response, question = "", ""
+                        try:
+                            orig_response = value['orig_response']
+                            question = value['question']
+                        except SyntaxError:
+                            pass
+                        if len(orig_response) > 0 and len(question) > 0 and question == question_token:
+                            value['pseudo_gold_program'] = action_string
+                            if 'response_bools' not in value:
+                                value['response_bools'] = []
+
+                            question_string = '<E> '
+                            entities = value['entity_mask']
+                            if len(entities) > 0:
+                                for entity_key, entity_value in entities.items():
+                                    if str(entity_value) != '':
+                                        question_string += str(entity_value) + ' '
+                            question_string += '</E> <R> '
+                            relations = value['relation_mask']
+                            if len(relations) > 0:
+                                for relation_key, relation_value in relations.items():
+                                    if str(relation_value) != '':
+                                        question_string += str(relation_value) + ' '
+                            question_string += '</R> <T> '
+                            types = value['type_mask']
+                            if len(types) > 0:
+                                for type_key, type_value in types.items():
+                                    if str(type_value) != '':
+                                        question_string += str(type_value) + ' '
+                            question_string += '</T> '
+
+                            if withint and 'int_mask' in value:
+                                question_string += '<I> '
+                                types = value['int_mask']
+                                if len(types) > 0:
+                                    for type_key, type_value in types.items():
+                                        if str(type_value) != '':
+                                            question_string += str(type_value) + ' '
+                                question_string += '</I> '
+
+                            question_token = str(value['question']).lower().replace('?', '')
+                            question_token = question_token.replace(',', ' ')
+                            question_token = question_token.replace(':', ' ')
+                            question_token = question_token.replace('(', ' ')
+                            question_token = question_token.replace(')', ' ')
+                            question_token = question_token.replace('"', ' ')
+                            question_token = question_token.strip()
+                            question_string += question_token
+                            question_string = question_string.strip()
+                            value['input'] = question_string
+
+                            dict_list[key] = value
+                            count += 1
+                            break
+
+            if count % 100 == 0:
+                print(count)
+
+    dict_train_list, dict_test_list = {}, {}
+    train_size = int(len(dict_list))
+    # train_size = int(len(dict_list) * 0.95)
+    temp_count = 0
+    for key, value in dict_list.items():
+        if temp_count < train_size:
+            dict_train_list[key] = value
+            temp_count += 1
+        elif train_size <= temp_count:
+            dict_test_list[key] = value
+            temp_count += 1
+    fwtrain.writelines(json.dumps(dict_train_list, indent=1, ensure_ascii=False))
+    fwtrain.close()
+    fwtest.writelines(json.dumps(dict_test_list, indent=1, ensure_ascii=False))
+    fwtest.close()
+    print("Getting NSM_RL_TR dataset is done!")
+
 # Get the training processDataset and test processDataset for seq2seq (one question to one action ).
 def getTrainingDatasetForPytorch(percentage, withint):
     # Create target directory & all intermediate directories if don't exists
@@ -411,7 +584,6 @@ def getTrainingDatasetForRlWithTrueReward(percentage, SIZE, withint):
     fwTestQ.close()
     print("Getting RL_TR processDataset is done!")
 
-
 # Run getTrainingDatasetForPytorch() to get evenly-distributed training and test processDataset for seq2seq model training.
 # Run getTrainingDatasetForRl() to get evenly-distributed training and test processDataset for REINFORCE-seq2seq model training.
 # Vocabulary and FINAL_test files are same as the share.question and FINAL-related files used in mask processDataset.
@@ -421,4 +593,5 @@ if __name__ == "__main__":
     size = 1479
     # getTrainingDatasetForPytorch(percentage, withint=True)
     # getTrainingDatasetForRl(percentage, withint=True)
-    getTrainingDatasetForRlWithTrueReward(percentage, size, withint=True)
+    # getTrainingDatasetForRlWithTrueReward(percentage, size, withint=True)
+    getTrainingDatasetForNSM(percentage, withint=True)

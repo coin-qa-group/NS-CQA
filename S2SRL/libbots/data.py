@@ -24,6 +24,7 @@ log = logging.getLogger("data")
 
 from itertools import islice
 
+
 def save_emb_dict(dir_name, emb_dict):
     with open(os.path.join(dir_name, EMB_DICT_NAME), "wb") as fd:
         pickle.dump(emb_dict, fd)
@@ -49,6 +50,7 @@ def encode_words(words, emb_dict):
     res.append(emb_dict[END_TOKEN])
     return res
 
+
 def encode_words_for_retriever(words, emb_dict):
     """
     Convert list of words into list of embeddings indices, adding our tokens
@@ -62,6 +64,7 @@ def encode_words_for_retriever(words, emb_dict):
         idx = emb_dict.get(w.lower(), unk_idx)
         res.append(idx)
     return res
+
 
 def encode_phrase_pairs(phrase_pairs, emb_dict, filter_unknows=True):
     """
@@ -80,6 +83,7 @@ def encode_phrase_pairs(phrase_pairs, emb_dict, filter_unknows=True):
         result.append(p)
     return result
 
+
 def encode_phrase_pairs_RLTR(phrase_pairs, emb_dict, filter_unknows=True):
     """
     Convert list of phrase pairs to training data
@@ -97,6 +101,7 @@ def encode_phrase_pairs_RLTR(phrase_pairs, emb_dict, filter_unknows=True):
         result.append(p)
     return result
 
+
 # Change token list into token tuple.
 def group_train_data_RLTR(training_data):
     groups = []
@@ -106,12 +111,14 @@ def group_train_data_RLTR(training_data):
         groups.append(temp)
     return list(groups)
 
+
 # Change token list into token tuple.
 def group_train_data_RLTR_for_support(training_data):
     groups = {}
     for p1, p2 in training_data:
         groups.setdefault(p2['qid'], (tuple(p1), p2))
     return groups
+
 
 def group_train_data(training_data):
     """
@@ -137,6 +144,7 @@ def group_train_data(training_data):
         l.append(p2)
     return list(groups.items())
 
+
 def group_train_data_one_to_one(training_data):
     """
     Group training_data to one-to-one format.
@@ -150,13 +158,14 @@ def group_train_data_one_to_one(training_data):
         temp_list.append(temp)
     return temp_list
 
+
 def iterate_batches(data, batch_size):
     assert isinstance(data, list)
     assert isinstance(batch_size, int)
 
     ofs = 0
     while True:
-        batch = data[ofs*batch_size:(ofs+1)*batch_size]
+        batch = data[ofs * batch_size:(ofs + 1) * batch_size]
         # STAR: Why the length of a batch can not be one?
         # if len(batch) <= 1:
         if len(batch) < 1:
@@ -164,7 +173,8 @@ def iterate_batches(data, batch_size):
         yield batch
         ofs += 1
 
-def get_RL_question_action_list(qpath,apath):
+
+def get_RL_question_action_list(qpath, apath):
     qdict = {}
     adict = {}
     with open(qpath, 'r', encoding="UTF-8") as infile:
@@ -195,6 +205,7 @@ def get_RL_question_action_list(qpath,apath):
                     adict.setdefault(qid, action_list)
     return qdict, adict
 
+
 def get_question_token_list(path):
     with open(path, 'r', encoding="UTF-8") as infile:
         token_list = list()
@@ -209,6 +220,7 @@ def get_question_token_list(path):
                 count = count + 1
                 # print(count)
     return token_list
+
 
 def get_action_token_list(path):
     with open(path, 'r', encoding="UTF-8") as infile:
@@ -225,6 +237,7 @@ def get_action_token_list(path):
                 # print(count)
     return token_list
 
+
 def get_vocab(path):
     with open(path, 'r', encoding="UTF-8") as infile:
         token_list = list()
@@ -239,6 +252,7 @@ def get_vocab(path):
                 count = count + 1
                 # print(count)
     return token_list
+
 
 # Suppose the genre_filter is comedy and other parameters are as default.
 def load_data(genre_filter, max_tokens=MAX_TOKENS, min_token_freq=MIN_TOKEN_FEQ):
@@ -262,7 +276,8 @@ def load_data(genre_filter, max_tokens=MAX_TOKENS, min_token_freq=MIN_TOKEN_FEQ)
     phrase_dict = phrase_pairs_dict(phrase_pairs, freq_set)
     return phrase_pairs, phrase_dict
 
-def load_data_from_existing_data(QUESTION_PATH, ACTION_PATH, DIC_PATH, max_tokens = None):
+
+def load_data_from_existing_data(QUESTION_PATH, ACTION_PATH, DIC_PATH, max_tokens=None):
     """
     Convert dialogues to training pairs of phrases
     :param dialogues:
@@ -287,7 +302,8 @@ def load_data_from_existing_data(QUESTION_PATH, ACTION_PATH, DIC_PATH, max_token
             next_id += 1
     return result, res
 
-def load_RL_data(QUESTION_PATH, ACTION_PATH, DIC_PATH, max_tokens = None):
+
+def load_RL_data(QUESTION_PATH, ACTION_PATH, DIC_PATH, max_tokens=None):
     qdict, adict = get_RL_question_action_list(QUESTION_PATH, ACTION_PATH)
     vocab_list = get_vocab(DIC_PATH)
     result = []
@@ -308,27 +324,31 @@ def load_RL_data(QUESTION_PATH, ACTION_PATH, DIC_PATH, max_tokens = None):
             next_id += 1
     return result, res
 
-def load_RL_data_TR(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
+
+def load_RL_data_TR(QUESTION_PATH, DIC_PATH=None, max_tokens=None, NSM=False):
     result = []
     with open(QUESTION_PATH, 'r', encoding="UTF-8") as load_f:
         load_dict = json.load(load_f)
         for key, value in load_dict.items():
             length = len(str(value['input']).strip().split(' '))
-            if 'entity_mask' in value \
-                    and 'relation_mask' in value \
-                    and 'type_mask' in value \
-                    and 'response_bools' in value \
-                    and 'response_entities' in value \
-                    and 'orig_response' in value \
-                    and 'question' in value \
-                    and length <= max_tokens:
-                question_info = {'qid':key,'entity_mask': value['entity_mask'], 'relation_mask': value['relation_mask'],
-                             'type_mask': value['type_mask'], 'response_bools': value['response_bools'],
-                             'response_entities': value['response_entities'], 'orig_response': value['orig_response']}
+            if 'entity_mask' in value and 'relation_mask' in value and 'type_mask' in value and 'response_bools' in value and 'response_entities' in value and 'orig_response' in value and 'question' in value and length <= max_tokens:
+                if not NSM:
+                    question_info = {'qid': key, 'entity_mask': value['entity_mask'],
+                                     'relation_mask': value['relation_mask'],
+                                     'type_mask': value['type_mask'], 'response_bools': value['response_bools'],
+                                     'response_entities': value['response_entities'],
+                                     'orig_response': value['orig_response']}
+                else:
+                    question_info = {'qid': key, 'entity_mask': value['entity_mask'],
+                                     'relation_mask': value['relation_mask'],
+                                     'type_mask': value['type_mask'], 'response_bools': value['response_bools'],
+                                     'response_entities': value['response_entities'],
+                                     'orig_response': value['orig_response'],
+                                     'pseudo_gold_program': value['pseudo_gold_program']}
                 result.append((str(value['input']).strip().split(' '), question_info))
             else:
                 continue
-    if(DIC_PATH!=None):
+    if (DIC_PATH != None):
         res = {UNKNOWN_TOKEN: 0, BEGIN_TOKEN: 1, END_TOKEN: 2}
         vocab_list = get_vocab(DIC_PATH)
         next_id = 3
@@ -340,20 +360,32 @@ def load_RL_data_TR(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
     else:
         return result
 
-def load_RL_data_TR_INT(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
+
+def load_RL_data_TR_INT(QUESTION_PATH, DIC_PATH=None, max_tokens=None, NSM=False):
     result = []
     with open(QUESTION_PATH, 'r', encoding="UTF-8") as load_f:
         load_dict = json.load(load_f)
         for key, value in load_dict.items():
             length = len(str(value['input']).strip().split(' '))
             if 'entity_mask' in value and 'relation_mask' in value and 'type_mask' in value and 'response_bools' in value and 'response_entities' in value and 'orig_response' in value and 'question' in value and 'int_mask' in value and length <= max_tokens:
-                question_info = {'qid':key,'entity_mask': value['entity_mask'], 'relation_mask': value['relation_mask'],
-                             'type_mask': value['type_mask'], 'response_bools': value['response_bools'],
-                             'response_entities': value['response_entities'], 'orig_response': value['orig_response'], 'int_mask': value['int_mask']}
+                if not NSM:
+                    question_info = {'qid': key, 'entity_mask': value['entity_mask'],
+                                     'relation_mask': value['relation_mask'],
+                                     'type_mask': value['type_mask'], 'response_bools': value['response_bools'],
+                                     'response_entities': value['response_entities'],
+                                     'orig_response': value['orig_response'], 'int_mask': value['int_mask']}
+                else:
+                    question_info = {'qid': key, 'entity_mask': value['entity_mask'],
+                                     'relation_mask': value['relation_mask'],
+                                     'type_mask': value['type_mask'], 'response_bools': value['response_bools'],
+                                     'response_entities': value['response_entities'],
+                                     'orig_response': value['orig_response'], 'int_mask': value['int_mask'],
+                                     'pseudo_gold_program': value['pseudo_gold_program']}
+
                 result.append((str(value['input']).strip().split(' '), question_info))
             else:
                 continue
-    if(DIC_PATH!=None):
+    if (DIC_PATH != None):
         res = {UNKNOWN_TOKEN: 0, BEGIN_TOKEN: 1, END_TOKEN: 2}
         vocab_list = get_vocab(DIC_PATH)
         next_id = 3
@@ -365,7 +397,8 @@ def load_RL_data_TR_INT(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
     else:
         return result
 
-def load_data_MAML(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
+
+def load_data_MAML(QUESTION_PATH, DIC_PATH=None, max_tokens=None):
     result = []
     with open(QUESTION_PATH, 'r', encoding="UTF-8") as load_f:
         load_dict = json.load(load_f)
@@ -373,14 +406,17 @@ def load_data_MAML(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
             length = len(str(value['input']).strip().split(' '))
             if max_tokens is None or length <= max_tokens:
                 if 'entity_mask' in value and 'relation_mask' in value and 'type_mask' in value and 'response_bools' in value and 'response_entities' in value and 'orig_response' in value and 'question' in value:
-                    question_info = {'qid':key,'entity_mask': value['entity_mask'], 'relation_mask': value['relation_mask'],
-                                 'type_mask': value['type_mask'], 'response_bools': value['response_bools'],
-                                 'response_entities': value['response_entities'], 'orig_response': value['orig_response'],
-                                 'entity':value['entity'], 'relation': value['relation'], 'type': value['type'], 'question':value['question']}
+                    question_info = {'qid': key, 'entity_mask': value['entity_mask'],
+                                     'relation_mask': value['relation_mask'],
+                                     'type_mask': value['type_mask'], 'response_bools': value['response_bools'],
+                                     'response_entities': value['response_entities'],
+                                     'orig_response': value['orig_response'],
+                                     'entity': value['entity'], 'relation': value['relation'], 'type': value['type'],
+                                     'question': value['question']}
                     result.append((str(value['input']).strip().split(' '), question_info))
             else:
                 continue
-    if(DIC_PATH!=None):
+    if (DIC_PATH != None):
         res = {UNKNOWN_TOKEN: 0, BEGIN_TOKEN: 1, END_TOKEN: 2}
         vocab_list = get_vocab(DIC_PATH)
         next_id = 3
@@ -392,8 +428,9 @@ def load_data_MAML(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
     else:
         return result
 
+
 # TODO: unify load_data_MAML_TEST with load_data_MAML with using 'response_bools';
-def load_data_MAML_TEST(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
+def load_data_MAML_TEST(QUESTION_PATH, DIC_PATH=None, max_tokens=None):
     result = []
     with open(QUESTION_PATH, 'r', encoding="UTF-8") as load_f:
         load_dict = json.load(load_f)
@@ -401,14 +438,16 @@ def load_data_MAML_TEST(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
             length = len(str(value['input']).strip().split(' '))
             if max_tokens is None or length <= max_tokens:
                 if 'entity_mask' in value and 'relation_mask' in value and 'type_mask' in value and 'response_entities' in value and 'orig_response' in value and 'question' in value:
-                    question_info = {'qid':key,'entity_mask': value['entity_mask'], 'relation_mask': value['relation_mask'],
-                                 'type_mask': value['type_mask'], 'response_entities': value['response_entities'],
-                                     'orig_response': value['orig_response'], 'entity':value['entity'],
-                                     'relation': value['relation'], 'type': value['type'], 'question':value['question']}
+                    question_info = {'qid': key, 'entity_mask': value['entity_mask'],
+                                     'relation_mask': value['relation_mask'],
+                                     'type_mask': value['type_mask'], 'response_entities': value['response_entities'],
+                                     'orig_response': value['orig_response'], 'entity': value['entity'],
+                                     'relation': value['relation'], 'type': value['type'],
+                                     'question': value['question']}
                     result.append((str(value['input']).strip().split(' '), question_info))
             else:
                 continue
-    if(DIC_PATH!=None):
+    if (DIC_PATH != None):
         res = {UNKNOWN_TOKEN: 0, BEGIN_TOKEN: 1, END_TOKEN: 2}
         vocab_list = get_vocab(DIC_PATH)
         next_id = 3
@@ -420,8 +459,9 @@ def load_data_MAML_TEST(QUESTION_PATH, DIC_PATH = None, max_tokens = None):
     else:
         return result
 
-def load_dict(DIC_PATH = None):
-    if(DIC_PATH!=None):
+
+def load_dict(DIC_PATH=None):
+    if (DIC_PATH != None):
         res = {UNKNOWN_TOKEN: 0, BEGIN_TOKEN: 1, END_TOKEN: 2}
         vocab_list = get_vocab(DIC_PATH)
         next_id = 3
@@ -432,6 +472,7 @@ def load_dict(DIC_PATH = None):
         return res
     else:
         return {}
+
 
 def phrase_pairs_dict(phrase_pairs, freq_set):
     """
@@ -447,6 +488,7 @@ def phrase_pairs_dict(phrase_pairs, freq_set):
                 res[w] = next_id
                 next_id += 1
     return res
+
 
 # 将dataset中的对话前一句和后一句组合成一个training pair;
 def dialogues_to_pairs(dialogues, max_tokens=None):
@@ -470,6 +512,7 @@ def dialogues_to_pairs(dialogues, max_tokens=None):
 def decode_words(indices, rev_emb_dict):
     return [rev_emb_dict.get(idx, UNKNOWN_TOKEN) for idx in indices]
 
+
 def trim_tokens_seq(tokens, end_token):
     res = []
     for t in tokens:
@@ -483,22 +526,25 @@ def split_train_test(data, train_ratio=0.90):
     count = int(len(data) * train_ratio)
     return data[:count], data[count:]
 
+
 def get944k(path):
     with open(path, "r", encoding='UTF-8') as CSQA_List:
         dict944k = json.load(CSQA_List)
     return dict944k
+
 
 def get_webqsp(path):
     with open(path, "r", encoding='UTF-8') as WEBQSP_List:
         dict_webqsp = json.load(WEBQSP_List)
     return dict_webqsp
 
+
 def get_docID_indices(order_list):
     did_indices = {}
     d_list = []
     next_id = 0
     for w in order_list:
-        if not len(w)<1:
+        if not len(w) < 1:
             docID, document = list(w.items())[0]
             if docID not in did_indices:
                 did_indices[docID] = next_id
@@ -506,14 +552,17 @@ def get_docID_indices(order_list):
                 next_id += 1
     return did_indices, d_list
 
+
 def get_ordered_docID_document(filepath):
     with open(filepath, 'r', encoding="UTF-8") as load_f:
-        return(json.load(load_f))
+        return (json.load(load_f))
+
 
 def load_json(QUESTION_PATH):
     with open(QUESTION_PATH, 'r', encoding="UTF-8") as load_f:
         load_dict = json.load(load_f)
         return load_dict
+
 
 def get_qid_question_pairs(filepath):
     pair = {}
@@ -523,6 +572,7 @@ def get_qid_question_pairs(filepath):
         pair[docID] = document
     return pair
 
+
 def get_question_embedding(question, emb_dict, net):
     question_token = question.lower().replace('?', '')
     question_token = question_token.replace(',', ' ')
@@ -531,8 +581,9 @@ def get_question_embedding(question, emb_dict, net):
     question_token = question_token.replace(')', ' ')
     question_token = question_token.replace('"', ' ')
     question_token = question_token.strip().split()
-    question_token_indices = [emb_dict['#UNK'] if token not in emb_dict else emb_dict[token] for token in question_token]
+    question_token_indices = [emb_dict['#UNK'] if token not in emb_dict else emb_dict[token] for token in
+                              question_token]
     question_token_embeddings = net.emb(torch.tensor(question_token_indices, requires_grad=False).cuda())
-    question_embeddings = torch.mean(question_token_embeddings, 0).view(1,-1)
+    question_embeddings = torch.mean(question_token_embeddings, 0).view(1, -1)
     question_embeddings = torch.tensor(question_embeddings.tolist(), requires_grad=False).cuda()
     return question_embeddings
