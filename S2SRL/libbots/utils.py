@@ -4,6 +4,7 @@ from nltk.translate import bleu_score
 from nltk.tokenize import TweetTokenizer
 from SymbolicExecutor.symbolics import Symbolics
 from SymbolicExecutor.symbolics_webqsp import Symbolics_WebQSP
+from SymbolicExecutor.symbolics_webqsp_novar import Symbolics_WebQSP_novar
 from SymbolicExecutor.transform_util import list2dict, list2dict_webqsp, transformBooleanToString
 
 W_1 = 0.2
@@ -87,7 +88,7 @@ def calc_True_Reward_webqsp(action_sequence, qa_info, adaptive_flag = False):
 
     #print("new_action", new_action)
     symbolic_seq = list2dict_webqsp(new_action)
-    print (symbolic_seq)
+    # print (symbolic_seq)
     symbolic_exe = Symbolics_WebQSP(symbolic_seq)
     answer = symbolic_exe.executor()
     if "?x" in answer:
@@ -95,16 +96,61 @@ def calc_True_Reward_webqsp(action_sequence, qa_info, adaptive_flag = False):
     else:
         return 0.0
 
+def calc_True_Reward_webqsp_novar(action_sequence, qa_info, adaptive_flag = False):
+    entity_mask = qa_info['entity_mask'] if 'entity_mask' in qa_info.keys() else {}
+    # print("entity_mask", entity_mask)
+    relation_mask = qa_info["relation_mask"] if 'relation_mask' in qa_info.keys() else {}
+    # print("relation_mask", relation_mask)
+    type_mask = qa_info['type_mask'] if 'type_mask' in qa_info.keys() else {}
+    # print("type_mask", type_mask)
+    # Update(add) elements in dict.
+    masking_elements = {**entity_mask, **relation_mask, **type_mask}
+    new_action = list()
+    # Default separator of split() method is any whitespace.
+    #print("action_sequence: ", action_sequence)
+    # print("masking_elements", masking_elements)
+    # for act in action_sequence:
+    #     for k, v in masking_elements.items():
+    #         if act == v:
+    #             act = k
+    #             break
+    #     new_action.append(act)
+
+    for act in action_sequence:
+        for k, v in entity_mask.items():
+            if act == v:
+                act = k
+                break
+        for k, v in relation_mask.items():
+            if act == v:
+                act = k
+                break
+        for k, v in type_mask.items():
+            if act == v:
+                act = k
+                break
+        new_action.append(act)
+
+    #print("new_action", new_action)
+    symbolic_seq = list2dict_webqsp(new_action)
+    # print (symbolic_seq)
+    symbolic_exe = Symbolics_WebQSP_novar(symbolic_seq)
+    answer = symbolic_exe.executor()
+    if "ANSWER" in answer:
+        return calc_01_reward_webqsp(answer["ANSWER"], qa_info['response_entities'])
+    else:
+        return 0.0
+
 w_1 = 0.2
-def calc_01_reward_webqsp(target_value, gold_entities_set, type = "jaccard"):
+def calc_01_reward_webqsp(target_value, gold_entities_set, type = "f1"):
     true_reward = 0.0
     if len(gold_entities_set) == 0:
         if len(target_value) == 0:
             return 1.0
         else:
             return 0.0
+    intersec = set(target_value).intersection(set(gold_entities_set))
     if type == "jaccard":
-        intersec = set(target_value).intersection(set(gold_entities_set))
         union = set([])
         union.update(target_value)
         union.update(gold_entities_set)

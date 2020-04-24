@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import datetime
 import re
 
 try:
@@ -17,14 +18,14 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 # Remote Server
-# post_url = "http://10.201.34.3:5002/post"
+# post_url = "http://10.201.34.3:5003/post"
 # # local server
 post_url = "http://127.0.0.1:5003/post"
 
 
-class Symbolics_WebQSP():
+class Symbolics_WebQSP_novar():
 
-    def __init__(self, seq, mode='online'):
+    def __init__(self, seq, tid='-1', mode='online'):
         # local server
         if mode != 'online':
             print("loading local knowledge base...")
@@ -37,6 +38,7 @@ class Symbolics_WebQSP():
             self.graph = None
             self.type_dict = None
         self.seq = seq
+        self.tid = tid
         self.answer = {}
         self.temp_variable_list = []  # to store temp variable
         self.temp_set = set([])
@@ -47,18 +49,23 @@ class Symbolics_WebQSP():
             for symbolic in self.seq:
                 # print("current answer:", self.answer)
                 key = list(symbolic.keys())[0]
-                if len(symbolic[key]) != 3:
-                    continue
-                e = symbolic[key][0].strip()
-                r = symbolic[key][1].strip()
-                t = str(symbolic[key][2]).strip()
+                # if len(symbolic[key]) != 3:
+                #     continue
+                param_list = symbolic[key]
+                # e = symbolic[key][0].strip()
+                # r = symbolic[key][1].strip()
+                # t = str(symbolic[key][2]).strip()
                 # The execution result from A1 is in dict format.
                 # A1: Select(e，r，t)
                 if ("A1" in symbolic):
                     try:
-                        temp_result = self.select(e, r, t)
-                        self.answer = temp_result
-                        self.temp_bool_dict = temp_result
+                        if len(symbolic[key]) == 2:
+                            e = symbolic[key][0].strip()
+                            r = symbolic[key][1].strip()
+                            t = ""
+                            temp_result = self.select(e, r, t)
+                            self.answer = temp_result
+                            self.temp_bool_dict = temp_result
                     except:
                         print('ERROR! The action is Select(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -66,9 +73,13 @@ class Symbolics_WebQSP():
                 # A2: Select_e(e，r，t)
                 elif ("A2" in symbolic):
                     try:
-                        temp_result = self.select_e(e, r, t)
-                        self.answer = temp_result
-                        self.temp_bool_dict = temp_result
+                        if len(symbolic[key]) == 2:
+                            e = 'NONE'
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            temp_result = self.select_e(e, r, t)
+                            self.answer = temp_result
+                            self.temp_bool_dict = temp_result
                     except:
                         print('ERROR! The action is Select_e(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -77,7 +88,12 @@ class Symbolics_WebQSP():
                 elif ("A3" in symbolic):
                     try:
                         # ?x ns:a ns:b
-                        self.answer.update(self.filter_answer(e, r, t))
+                        if len(symbolic[key]) == 2:
+                            if 'ANSWER' in self.answer:
+                                e = self.answer['ANSWER']
+                                r = symbolic[key][0].strip()
+                                t = str(symbolic[key][1]).strip()
+                                self.answer = self.filter_answer(e, r, t)
                     except:
                         print('ERROR! The action is filter_answer(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -85,7 +101,13 @@ class Symbolics_WebQSP():
                 # A4: Joint
                 elif ("A4" in symbolic):
                     try:
-                        self.answer.update(self.joint(e, r, t))
+                        # self.answer.update(self.joint(e, r, t))
+                        if len(symbolic[key]) == 1:
+                            if 'ANSWER' in self.answer:
+                                e = self.answer['ANSWER']
+                                r = symbolic[key][0].strip()
+                                t = 'NONE'
+                                self.answer = self.joint(e, r, t)
                     except:
                         print('ERROR! The action is joint_str(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -93,7 +115,11 @@ class Symbolics_WebQSP():
                 # A5: Filter not equal
                 elif ("A5" in symbolic):
                     try:
-                        self.answer = self.filter_not_equal(e, r, t)
+                        if len(symbolic[key]) == 1 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
+                            r = 'NONE'
+                            t = symbolic[key][0].strip()
+                            self.answer = self.filter_not_equal(e, r, t)
                     except:
                         print('ERROR! The action is filter_not_equal(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -109,15 +135,23 @@ class Symbolics_WebQSP():
                 # A7: order_value_limit: order e by value and get top n
                 elif ("A7" in symbolic):
                     try:
-                        self.answer = self.order_value_limit(e, r, t, False)
+                        if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            self.answer = self.order_value_limit(e, r, t, False)
                     except:
                         print('ERROR! The action is order_value_limit(%s,%s,%s).' % (e, r, t))
                     finally:
                         self.print_answer()
-                # A7: order_value_desc_limit: order desc e by value and get top n
+                # A8: order_value_desc_limit: order desc e by value and get top n
                 elif ("A8" in symbolic):
                     try:
-                        self.answer = self.order_value_limit(e, r, t, True)
+                        if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            self.answer = self.order_value_limit(e, r, t, True)
                     except:
                         print('ERROR! The action is order_value_desc_limit(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -125,7 +159,32 @@ class Symbolics_WebQSP():
                 # A9: Union(e，r，t)
                 elif ("A9" in symbolic):
                     try:
+                        # in this way not use
                         self.answer.update(self.union(e, r, t))
+                    except:
+                        print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
+                    finally:
+                        self.print_answer()
+                # A10: date_less_or_equal(r，t)
+                elif ("A10" in symbolic):
+                    try:
+                        if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            self.answer = self.date_less_or_equal(e, r, t)
+                    except:
+                        print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
+                    finally:
+                        self.print_answer()
+                # A11: date_greater_or_equal(r，t)
+                elif ("A11" in symbolic):
+                    try:
+                        if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            self.answer = self.date_greater_or_equal(e, r, t)
                     except:
                         print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -139,7 +198,7 @@ class Symbolics_WebQSP():
 
     # A1
     def select(self, e, r, t):
-        if e == "" or r == "" or t == "":
+        if e == "" or r == "":
             return {}
         else:
             content = set([])
@@ -163,11 +222,12 @@ class Symbolics_WebQSP():
                 else:
                     content = set([])
                 # A dict is returned whose key is the subject and whose value is set of entities.
-                return {t: content}
+                # return {t: content}
+                return {'ANSWER': content}
 
     # A2
     def select_e(self, e, r, t):
-        if e == "" or r == "" or t == "":
+        if r == "" or t == "":
             return {}
         else:
             content = set([])
@@ -178,8 +238,10 @@ class Symbolics_WebQSP():
                 jsonpost = json.dumps(json_pack)
                 # result_content = requests.post(post_url,json=json_pack)
                 # print(result_content)
-                content, content_result = requests.post(post_url, json=jsonpost).json()['content']
-                if content is not None and content_result == 0:
+                x = requests.post(post_url, json=jsonpost)
+                xx = x.json()
+                content, result = xx['content']
+                if content is not None:
                     content = set(content)
             except Exception as error:
                 print("ERROR for command: select_e_str(%s,%s,%s)" % (e, r, t), error)
@@ -190,25 +252,23 @@ class Symbolics_WebQSP():
                 else:
                     content = set([])
                 # A dict is returned whose key is the subject and whose value is set of entities.
-                return {e: content}
+                # return {e: content}
+                return {'ANSWER': content}
 
     # A3
     def filter_answer(self, e, r, t):
         intermediate_result = {}
-        if e == "" or r == "" or t == "":
+        if r == "" or t == "":
             return {}
         elif not isinstance(self.answer, dict):
             return {}
         else:
             try:
                 # print ("start filter_answer")
-                if "?" in e:
+                # if "?" in e:
                     json_pack = dict()
                     json_pack['op'] = "get_filter_answer"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
+                    json_pack['e'] = list(self.answer["ANSWER"]) if "ANSWER" in self.answer else []
                     json_pack['r'] = r
                     json_pack['t'] = t
                     jsonpost = json.dumps(json_pack)
@@ -218,7 +278,9 @@ class Symbolics_WebQSP():
                         content = set(content)
                     else:
                         content = set([])
-                    intermediate_result = {e: content}
+                    # intermediate_result = {e: content}
+                    intermediate_result = {'ANSWER': content}
+
             except:
                 print("ERROR for command: filter_answer(%s,%s,%s)" % (e, r, t))
             finally:
@@ -227,48 +289,51 @@ class Symbolics_WebQSP():
     # A4
     def joint(self, e, r, t):
         intermediate_result = {}
-        if e == "" or r == "" or t == "":
+        if r == "":
             return {}
         elif not isinstance(self.answer, dict):
             return {}
         else:
             try:
-                if '?' in e and t != '?x':
-                    json_pack = dict()
-                    json_pack['op'] = "joint"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
-                    json_pack['r'] = r
-                    json_pack['t'] = t
-                    jsonpost = json.dumps(json_pack)
-                    # result_content = requests.post(post_url,json=json_pack)
-                    # print(result_content)
-                    content, content_result = requests.post(post_url, json=jsonpost).json()['content']
-                    if content is not None and content_result == 0:
-                        content = set(content)
-                    else:
-                        content = set([])
-                    intermediate_result = {t: content}
-                if '?' in e and t == '?x':
-                    # print(e, self.answer[e])
-                    json_pack = dict()
-                    json_pack['op'] = "get_joint_answer"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
-                    json_pack['r'] = r
-                    jsonpost = json.dumps(json_pack)
-                    # result_content = requests.post(post_url,json=json_pack)
-                    # print(result_content)
-                    content, content_result = requests.post(post_url, json=jsonpost).json()['content']
-                    if content is not None and content_result == 0:
-                        content = set(content)
-                    else:
-                        content = set([])
-                    intermediate_result = {t: content}
+                # if '?' in e and t != '?x':
+                json_pack = dict()
+                json_pack['op'] = "joint"
+                json_pack['e'] = list(self.answer['ANSWER'])
+                # if e in self.answer:
+                #     json_pack['e'] = list(self.answer[e])
+                # else:
+                #     json_pack['e'] = []
+                json_pack['r'] = r
+                json_pack['t'] = t
+                jsonpost = json.dumps(json_pack)
+                # result_content = requests.post(post_url,json=json_pack)
+                # print(result_content)
+                content, content_result = requests.post(post_url, json=jsonpost).json()['content']
+                if content is not None and content_result == 0:
+                    content = set(content)
+                else:
+                    content = set([])
+                # intermediate_result = {t: content}
+                intermediate_result = {'ANSWER': content}
+
+                # if '?' in e and t == '?x':
+                #     # print(e, self.answer[e])
+                #     json_pack = dict()
+                #     json_pack['op'] = "get_joint_answer"
+                #     if e in self.answer:
+                #         json_pack['e'] = list(self.answer[e])
+                #     else:
+                #         json_pack['e'] = []
+                #     json_pack['r'] = r
+                #     jsonpost = json.dumps(json_pack)
+                #     # result_content = requests.post(post_url,json=json_pack)
+                #     # print(result_content)
+                #     content, content_result = requests.post(post_url, json=jsonpost).json()['content']
+                #     if content is not None and content_result == 0:
+                #         content = set(content)
+                #     else:
+                #         content = set([])
+                #     intermediate_result = {t: content}
             except:
                 print("ERROR for command: joint_str(%s,%s,%s)" % (e, r, t))
             finally:
@@ -276,25 +341,63 @@ class Symbolics_WebQSP():
 
     # A5
     def filter_not_equal(self, e, r, t):
-        intermediate_result = {}
-        if e == "" or t == "":
+        intermediate_result = {'ANSWER': []}
+        if t == "":
             return {}
         elif not isinstance(self.answer, dict):
             return {}
         else:
             try:
                 # print("filter_not_equal")
-                if e in self.answer:
-                    answer_list = []
-                    # print(t)
-                    for answer_item in self.answer[e]:
+                # if e in list(self.answer['ANSWER']):
+                answer_list = []
+                # print(t)
+                if 'ANSWER' in self.answer:
+                    for answer_item in list(self.answer['ANSWER']):
                         if (answer_item != t):
                             answer_list.append(answer_item)
-                    intermediate_result = {e: answer_list}
+                    # intermediate_result = {e: answer_list}
+                    intermediate_result = {'ANSWER': answer_list}
+
             except:
                 print("ERROR for command: filter_not_equal(%s,%s,%s)" % (e, r, t))
             finally:
                 return intermediate_result
+
+    def is_date(self, x):
+        x_orig = x
+        if x.startswith('m.'):
+            return False
+        if len(x.split('-')) == 1:
+            x = x + '-01-01'
+        elif len(x.split('-')) == 2:
+            x = x + '-01'
+        try:
+            yyyy = int(x.split('-')[0])
+            mm = int(x.split('-')[1])
+            dd = int(x.split('-')[2])
+            d = datetime.datetime(yyyy, mm, dd)
+            return True
+        except Exception as e:
+            # traceback.print_exc(e)
+            return False
+
+    def get_date(self, x):
+        x_orig = x
+        if x.startswith('m.'):
+            return False
+        if len(x.split('-')) == 1:
+            x = x + '-01-01'
+        elif len(x.split('-')) == 2:
+            x = x + '-01'
+        try:
+            yyyy = int(x.split('-')[0])
+            mm = int(x.split('-')[1])
+            dd = int(x.split('-')[2])
+            d = datetime.datetime(yyyy, mm, dd)
+            return d
+        except:
+            return None
 
     # A6
     def map_value(self, e, r, t):
@@ -305,22 +408,24 @@ class Symbolics_WebQSP():
             return {}
         else:
             try:
-                if "?" in e:
-                    json_pack = dict()
-                    json_pack['op'] = "map_value"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
-                    json_pack['r'] = r
-                    jsonpost = json.dumps(json_pack)
-                    content, content_result = requests.post(post_url, json=jsonpost).json()['content']
-                    # print(content)
-                    if content is not None and content_result == 0:
-                        content = content
-                    else:
-                        content = {}
-                    intermediate_result = content
+                json_pack = dict()
+                json_pack['op'] = "map_value"
+
+                date_list = []
+                for e_item in e:
+                    if self.is_date(e_item):
+                        # date_list.append(self.get_date(e_item))
+                        date_list.append(str(e_item))
+                json_pack['e'] = list(e) if len(date_list) == 0 else date_list
+                json_pack['r'] = r
+                jsonpost = json.dumps(json_pack)
+                content, content_result = requests.post(post_url, json=jsonpost).json()['content']
+                # print(content)
+                if content is not None and content_result == 0:
+                    content = content
+                else:
+                    content = {}
+                intermediate_result = content
             except:
                 print("ERROR for command: map_value(%s,%s,%s)" % (e, r, t))
             finally:
@@ -329,7 +434,7 @@ class Symbolics_WebQSP():
     # A7 A8
     def order_value_limit(self, e, r, n, b_reverse):
         intermediate_result = {}
-        if e == "" or r == "" or int(n) is None:
+        if r == "" or int(n) is None:
             return {}
         elif not isinstance(self.answer, dict):
             return {}
@@ -345,7 +450,8 @@ class Symbolics_WebQSP():
 
                     for v_key in e_list:
                         result_list.append(v_key[0])
-                intermediate_result = {e: result_list}
+                # intermediate_result = {e: result_list}
+                intermediate_result = {'ANSWER': result_list}
             except:
                 if b_reverse:
                     print("ERROR for command: order_value_limit(%s,%s,%s)" % (e, r, n))
@@ -389,22 +495,19 @@ class Symbolics_WebQSP():
             return {}
         else:
             try:
-                if "?" in e:
+                if self.is_date(date):
                     json_pack = dict()
                     json_pack['op'] = "execute_select_oper_date_lt"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
+                    json_pack['e'] = list(e)
                     json_pack['r'] = r
-                    json_pack['date'] = date
+                    json_pack['date'] = str(date)
                     jsonpost = json.dumps(json_pack)
                     content, content_result = requests.post(post_url, json=jsonpost).json()['content']
                     if content is not None and content_result == 0:
                         content = set(content)
                     else:
                         content = set([])
-                    intermediate_result = {e: content}
+                    intermediate_result = {'ANSWER': content}
             except:
                 print("ERROR for command: date_less_or_equal(%s, %s)" % (e, date))
             finally:
@@ -419,24 +522,21 @@ class Symbolics_WebQSP():
             return {}
         else:
             try:
-                if "?" in e:
+                if self.is_date(date):
                     json_pack = dict()
                     json_pack['op'] = "execute_select_oper_date_gt"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
+                    json_pack['e'] = list(e)
                     json_pack['r'] = r
-                    json_pack['date'] = date
+                    json_pack['date'] = str(date)
                     jsonpost = json.dumps(json_pack)
                     content, content_result = requests.post(post_url, json=jsonpost).json()['content']
                     if content is not None and content_result == 0:
                         content = set(content)
                     else:
                         content = set([])
-                    intermediate_result = {e: content}
+                    intermediate_result = {'ANSWER': content}
             except:
-                print("ERROR for command: date_less_or_equal(%s, %s)" % (e, date))
+                print("ERROR for command: date_greater_or_equal(%s, %s)" % (e, date))
             finally:
                 return intermediate_result
 
