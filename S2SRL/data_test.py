@@ -19,13 +19,12 @@ if __name__ == "__main__":
     # # command line parameters for final test
     # sys.argv = ['data_test.py', '-m=bleu_0.984_09.dat', '-p=final', '--n=rl_even']
     # command line parameters for final test (subset data)
-    sys.argv = ['data_test.py', '-m=epoch_040_0.997_0.945.dat', '-p=sample_final_int', '--n=crossent_even_1%_att=0_withINT', '--att=0', '--lstm=1', '--int', '-w2v=50']
+    sys.argv = ['data_test.py', '-m=pre_bleu_0.956_43.dat', '--cuda', '-p=sample_final_int', '--n=crossent_1%_att=0_withINT_w2v=300', '--att=0', '--lstm=1', '--int', '-w2v=300', '--beam_search']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True,
     #                     help="Category to use for training. Empty string to train on full processDataset")
     parser.add_argument("-m", "--model", required=True, help="Model name to load")
-    parser.add_argument("-p", "--pred", required=True, help="the test processDataset format, " \
-                                                            "py is one-to-one (one sentence with one reference), rl is one-to-many")
+    parser.add_argument("-p", "--pred", required=True, help="the test processDataset format, py is one-to-one (one sentence with one reference), rl is one-to-many")
     parser.add_argument("-n", "--name", required=True, help="Name of the run")
     # Choose the function to compute reward (0-1 or adaptive reward).
     # If a = true, 1 or yes, the adaptive reward is used. Otherwise 0-1 reward is used.
@@ -36,7 +35,14 @@ if __name__ == "__main__":
     parser.add_argument('--int', action='store_true', help='training model with INT mask information')
     # The dimension of the word embeddings.
     parser.add_argument("-w2v", "--word_dimension", type=int, default=50, help="The dimension of the word embeddings")
+    # Inferring with beam search.
+    parser.add_argument("--beam_search", action='store_true', help='inferring with beam search')
+    # The size of the beam search.
+    parser.add_argument("--beam_width", type=int, default=10, help="Size of beam search")
+    parser.add_argument("--cuda", action='store_true', default=False, help="Enable cuda")
     args = parser.parse_args()
+
+    device = torch.device("cuda" if args.cuda else "cpu")
 
     PREDICT_PATH = '../data/saves/' + str(args.name) + '/' + str(args.pred) + '_predict.actions'
     fwPredict = open(PREDICT_PATH, 'w', encoding="UTF-8")
@@ -48,6 +54,11 @@ if __name__ == "__main__":
     log.info("Open: %s", '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.question')
     TEST_ACTION_PATH = '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.action'
     log.info("Open: %s", '../data/auto_QA_data/mask_test/' + str(args.pred).upper() + '_test.action')
+    if args.beam_search:
+        log.info("Inferring with beam search...")
+        log.info("Beam search width is %d", args.beam_width)
+    else:
+        log.info("Inferring with argmax search...")
     if args.int:
         log.info("Test with INT.")
         dic_path = DIC_PATH_INT
@@ -80,20 +91,28 @@ if __name__ == "__main__":
     test_dataset_count = 0
     token_string_list = list()
     refer_string_list = list()
-    # seq_1是輸入，targets是references，可能有多個；
+    # seq_1 represents the input and targets represent the multiple references；
     for seq_1, targets in train_data:
         test_dataset_count += 1
         input_seq = net.pack_input(seq_1, net.emb)
         # enc = net.encode(input_seq)
         context, enc = net.encode_context(input_seq)
-        # # Always use the first token in input sequence, which is '#BEG' as the initial input of decoder.
-        _, tokens = net.decode_chain_argmax(enc, input_seq.data[0:1],
-                                            seq_len=data.MAX_TOKENS, context=context[0], stop_at_token=end_token)
+        if not args.beam_search:
+            # # Always use the first token in input sequence,
+            # which is '#BEG' as the initial input of decoder.
+            _, tokens = net.decode_chain_argmax(enc, input_seq.data[0:1], seq_len=data.MAX_TOKENS, context=context[0], stop_at_token=end_token)
+
+        if args.beam_search:
+            # BEGIN token
+            beg_token = torch.LongTensor([emb_dict[data.BEGIN_TOKEN]]).to(device)
+            _, action_sequence_list = net.beam_decode(hid=enc, seq_len=data.MAX_TOKENS, context=context, start_token=beg_token, stop_at_token=end_token, beam_width=args.beam_width, topk=1)
+            tokens = action_sequence_list[0] if len(action_sequence_list) > 0 else []
+
         references = [seq[1:] for seq in targets]
         # references = [seq[1:] if seq[1:] != '' else ['NONE'] for seq in targets]
         token_string, reference_string = '', ''
         for token in tokens:
-            if token in rev_emb_dict and rev_emb_dict.get(token)!= '#END':
+            if token in rev_emb_dict and rev_emb_dict.get(token) != '#END':
                 token_string += str(rev_emb_dict.get(token)).upper() + ' '
         token_string = token_string.strip()
         # log.info("%d PREDICT: %s", test_dataset_count, token_string)

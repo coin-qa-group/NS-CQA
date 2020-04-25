@@ -112,8 +112,8 @@ def duplicate(s1,s2):
     return compare(s1, s2)
 
 if __name__ == "__main__":
-    s1 = ['A2', '(', 'TYPE1', '-', 'RELATION1', 'TYPE2', ')', 'A6', '(', 'ENTITY1', ')']
-    s2 = ['A2', '(', 'TYPE2', '-', 'RELATION1', 'TYPE1', ')', 'A6', '(', 'ENTITY1', ')']
+    # s1 = ['A2', '(', 'TYPE1', '-', 'RELATION1', 'TYPE2', ')', 'A6', '(', 'ENTITY1', ')']
+    # s2 = ['A2', '(', 'TYPE2', '-', 'RELATION1', 'TYPE1', ')', 'A6', '(', 'ENTITY1', ')']
     # print(jaccard_similarity(s1, s2))
     # print(levenshtein_similarity(s2, s1))
 
@@ -126,7 +126,14 @@ if __name__ == "__main__":
     # sum_list = [1, 2, 3]
     # print(sum(sum_list))
 
-    print(duplicate(s1, s2))
+    # print(duplicate(s1, s2))
+
+    ETA = 0.08
+    LAMBDA_0 = 0.1
+    epoch = 0
+    print(math.pow(1.0 + ETA, float(epoch) + 1.0) * LAMBDA_0)
+    print(min(1.0, math.pow(1.0 + ETA, float(epoch) + 1.0) * LAMBDA_0))
+
 
     '''max_length = 50
     batch_size = 5

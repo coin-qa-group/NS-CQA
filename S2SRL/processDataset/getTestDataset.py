@@ -104,8 +104,8 @@ def getSampleTestDataset(withint=False):
         action_path = '../../data/auto_QA_data/mask_test/SAMPLE_FINAL_test.action'
         JSON_path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test.json'
     else:
-        question_path = '../../data/auto_QA_data/mask_test/SAMPLE_FINAL_INT_test.question'
-        action_path = '../../data/auto_QA_data/mask_test/SAMPLE_FINAL_INT_test.action'
+        question_path = '../../data/auto_QA_data/mask_test/SUB_SAMPLE_FINAL_INT_test.question'
+        action_path = '../../data/auto_QA_data/mask_test/SUB_SAMPLE_FINAL_INT_test.action'
         JSON_path = '../../data/auto_QA_data/CSQA_ANNOTATIONS_test_INT.json'
     fwTestQ = open(question_path, 'w', encoding="UTF-8")
     fwTestA = open(action_path, 'w', encoding="UTF-8")
@@ -159,7 +159,7 @@ def getSampleTestDataset(withint=False):
                 dict_temp.setdefault('q', str(key) + ' ' + question_string)
                 dict_temp.setdefault('a', str(key) + ' ' + action_string)
                 count += 1
-                if count%20==0:
+                if count%200==0:
                     dict_list.append(dict_temp)
 
     # train_size = int(len(dict_list) * 0.95)
@@ -264,9 +264,9 @@ def getSampleTestDatasetForMAML(withint=False):
 
 # Run getTestDataset to get the final test processDataset.
 if __name__ == "__main__":
-    getTestDataset(withint=True)
+    # getTestDataset(withint=True)
     getSampleTestDataset(withint=True)
-    getSampleTestDatasetForMAML(withint=True)
+    # getSampleTestDatasetForMAML(withint=True)
 
 
 

@@ -20,5 +20,8 @@ class BeamSearchNode(object):
         reward = 0
         # Add here a function for shaping a reward
 
-        # It gives preference to return longer action sequences.
-        return self.logp / float(self.leng - 1 + 1e-6) + alpha * reward
+        # # It gives preference to return longer action sequences.
+        # return self.logp / float(self.leng - 1 + 1e-6) + alpha * reward
+
+        # It gives preference to return shorter action sequences.
+        return self.logp + alpha * reward

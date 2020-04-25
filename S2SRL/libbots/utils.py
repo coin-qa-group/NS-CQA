@@ -16,21 +16,31 @@ def calc_bleu_many(cand_seq, ref_sequences):
     return bleu_score.sentence_bleu(ref_sequences, cand_seq,
                                     smoothing_function=sf.method1,
                                     weights=(0.5, 0.5))
+
 def calc_True_Reward(action_sequence, qa_info, adaptive_flag = False):
     entity_mask = qa_info['entity_mask'] if 'entity_mask' in qa_info.keys() else {}
     relation_mask = qa_info["relation_mask"] if 'relation_mask' in qa_info.keys() else {}
     type_mask = qa_info['type_mask'] if 'type_mask' in qa_info.keys() else {}
-    # todo test
     int_mask = qa_info['int_mask'] if 'int_mask' in qa_info.keys() else {}
     # Update(add) elements in dict.
     masking_elements = {**entity_mask, **relation_mask, **type_mask, **int_mask}
     new_action = list()
     # Default separator of split() method is any whitespace.
+    mask_name_list = ["ENTITY", "RELATION", "TYPE", "INT"]
     for act in action_sequence:
-        for k, v in masking_elements.items():
-            if act == v:
-                act = k
-                break
+        # Unmasking.
+        if any(name in str(act) for name in mask_name_list):
+            correct_flag = False
+            for k, v in masking_elements.items():
+                if act == v:
+                    act = k
+                    correct_flag = True
+                    break
+            # If the action could not find the corresponding mask in the dict,
+            # then the predicted action is not semantically correct, the reward should be returned as -1.0.
+            if not correct_flag:
+                # print('%s: %s is wrong!' % (str(qa_info['qid']), str(action_sequence)))
+                return -1.0
         new_action.append(act)
     symbolic_seq = list2dict(new_action)
     # print (symbolic_seq)
@@ -170,7 +180,7 @@ def calc_01_reward(answer, qa_info):
     qid = qa_info['qid'].strip() if 'qid' in qa_info.keys() else ""
     if qid.startswith("Quantitative Reasoning (Count) (All)_") or qid.startswith("Comparative Reasoning (Count) (All)_"):
         if not isinstance(answer, int):
-            return 0.0
+            return -1.0
         if orig_response.isdigit():
             true_answer = int(orig_response)
         else:
@@ -182,28 +192,35 @@ def calc_01_reward(answer, qa_info):
         return true_reward
 
     # For boolean, the returned answer is a list.
-    elif qid.startswith("Verification (Boolean) (All)_"):
+    elif qid.startswith("Verification (Boolean) (All)_") or qid.startswith("Verification(Boolean)(All)"):
+        if answer == {}: true_reward = -1.0
         # To judge the returned answers are in dict format or boolean format.
-        if (type(answer) == dict):
+        elif type(answer) == dict:
             temp = []
             if '|BOOL_RESULT|' in answer:
                 temp.extend(answer['|BOOL_RESULT|'])
                 predicted_answer_string = transformBooleanToString(temp)
                 if predicted_answer_string != '' and predicted_answer_string == orig_response:
                     true_reward = 1.0
-        else:
+            else:
+                true_reward = -1.0
+        elif type(answer) == bool:
             predicted_answer = ""
-            if answer == True:
+            if answer:
                 predicted_answer = "YES"
-            if answer == False:
+            elif not answer:
                 predicted_answer = "NO"
             if predicted_answer == orig_response:
                 true_reward = 1.0
+        else:
+            true_reward = -1.0
         return true_reward
 
     elif qid.startswith("Simple Question (Direct)_") or qid.startswith("Logical Reasoning (All)_") or qid.startswith("Quantitative Reasoning (All)_") or qid.startswith("Comparative Reasoning (All)_"):
         # To judge the returned answers are in dict format or boolean format.
         if type(answer) == dict:
+            if '|BOOL_RESULT|' in answer:
+                return -1.0
             temp = []
             for key, value in answer.items():
                 if key != '|BOOL_RESULT|' and value:
@@ -213,9 +230,11 @@ def calc_01_reward(answer, qa_info):
         elif type(answer) == type([]) or type(answer) == type(set([])):
             predicted_answer = sorted((list(answer)))
         elif type(answer) == int:
-            predicted_answer = [answer]
+            return -1.0
+            # predicted_answer = [answer]
         else:
-            predicted_answer = [answer]
+            return -1.0
+            # predicted_answer = [answer]
         # Solve the problem when response entities is [] and original response is 'None'.
         if orig_response == 'None':
             if len(predicted_answer) == 0:
@@ -260,9 +279,10 @@ def calc_adaptative_reward(answer, qa_info):
         return (R_type * (W_1 + W_2 * R_answer))
 
     # For boolean, the returned answer is a list.
-    if qid.startswith("Verification (Boolean) (All)_"):
+    if qid.startswith("Verification (Boolean) (All)_") or qid.startswith("Verification(Boolean)(All)"):
+        if answer == {}: return -1.0
         # To judge the returned answers are in dict format or boolean format.
-        if (type(answer) == dict):
+        elif type(answer) == dict:
             R_type = 1.0
             answer_list = []
             if '|BOOL_RESULT|' in answer:
@@ -312,13 +332,15 @@ def calc_adaptative_reward(answer, qa_info):
                 if predicted_answer == orig_response.strip():
                     return 1.0
                 return (1.0 * W_1)
-        return 0.0
+        return -1.0
 
     elif qid.startswith("Simple Question (Direct)_") or qid.startswith("Logical Reasoning (All)_") or qid.startswith(
             "Quantitative Reasoning (All)_") or qid.startswith("Comparative Reasoning (All)_"):
         # To judge the returned answers are in dict format or boolean format.
         R_type = 1.0
         if (type(answer) == dict):
+            if '|BOOL_RESULT|' in answer:
+                return -1.0
             temp = []
             for key, value in answer.items():
                 if key != '|BOOL_RESULT|' and value:
@@ -328,9 +350,11 @@ def calc_adaptative_reward(answer, qa_info):
         elif type(answer) == type([]) or type(answer) == type(set([])):
             predicted_answer = sorted((list(answer)))
         elif type(answer) == int:
-            predicted_answer = [answer]
+            return -1.0
+            # predicted_answer = [answer]
         else:
-            predicted_answer = [answer]
+            return -1.0
+            # predicted_answer = [answer]
         # Solve the problem when response entities is [] and original response is 'None'.
         if orig_response == 'None' and len(response_entities) == 0:
             if len(predicted_answer) == 0:
@@ -354,6 +378,30 @@ def calc_adaptative_reward(answer, qa_info):
                     F1 = 2 * precision * recall / (recall + precision) if (precision!=0 and recall!=0) else 0
                     return (R_type * (W_1 + W_2 * F1))
 
+# Compute proximity for Curriculum-guided Hindsight Experience Replay.
+def calculate_proximity(action_tokens, action_buffer):
+    max_proximity = 0.0
+    if action_buffer is None:
+        return max_proximity
+    else:
+        for action_in_buffer in action_buffer:
+            proximity = levenshtein_similarity(action_tokens, action_in_buffer)
+            if proximity > max_proximity:
+                max_proximity = proximity
+        return max_proximity
+
+# Compute diversity for Curriculum-guided Hindsight Experience Replay.
+def calculate_diversity(action_tokens, action_buffer):
+    beta = 1.0
+    similarity_sum = 0.0
+    if action_buffer is None:
+        return beta - similarity_sum
+    else:
+        for action_in_buffer in action_buffer:
+            similarity_sum += levenshtein_similarity(action_tokens, action_in_buffer)
+        diversity = max(beta - similarity_sum / float(len(action_buffer)), 0.0)
+        return diversity
+
 def calc_bleu(cand_seq, ref_seq):
     return calc_bleu_many(cand_seq, [ref_seq])
 
@@ -365,7 +413,7 @@ def untokenize(words):
 
 # To judge whether s1 and s2 are same lists or not.
 def duplicate(s1,s2):
-    compare = lambda a,b: len(a)==len(b) and len(a)==sum([1 for i,j in zip(a,b) if i==j])
+    compare = lambda a, b: len(a) == len(b) and len(a) == sum([1 for i, j in zip(a, b) if i == j])
     return compare(s1, s2)
 
 # To compute the Jaccard score between action sequences s1 and s2.
