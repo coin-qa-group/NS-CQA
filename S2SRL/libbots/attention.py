@@ -65,12 +65,20 @@ class Attention(nn.Module):
         # for idx1, temp1 in enumerate(unpack_output[0]):
         #     for idx, temp in enumerate(context_trans[0]):
         #         print('o'+str(idx1)+',c'+str(idx)+': '+str(torch.dot(temp1, temp)))
-        # (batch, out_len, dim) * (batch, in_len, dim) -> (batch, out_len, in_len)
+        # (batch, out_len, dim) * (batch, dim, context_len) -> (batch, out_len, context_len)
         attn = torch.bmm(unpack_output, context_trans.transpose(1, 2))
         if self.mask is not None:
             attn.data.masked_fill_(self.mask, -float('inf'))
         attn = F.softmax(attn.view(-1, input_size), dim=1).view(batch_size, -1, input_size)
-        # (batch, out_len, in_len) * (batch, in_len, dim) -> (batch, out_len, dim)
+        # torch.bmm(batch1, batch2, out=None) → Tensor
+        # Performs a batch matrix-matrix product of matrices stored in batch1 and batch2.
+        # batch1 and batch2 must be 3-D tensors each containing the same number of matrices.
+        # >>> batch1 = torch.randn(10, 3, 4)
+        # >>> batch2 = torch.randn(10, 4, 5)
+        # >>> res = torch.bmm(batch1, batch2)
+        # >>> res.size()
+        # torch.Size([10, 3, 5])
+        # (batch, out_len, context_len) * (batch, context_len, dim) -> (batch, out_len, dim)
         mix = torch.bmm(attn, context_trans)
         # concat -> (batch, out_len, 2*dim)
         combined = torch.cat((mix, unpack_output), dim=2)

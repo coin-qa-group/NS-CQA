@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+import datetime
 import re
 
 try:
@@ -24,7 +25,7 @@ post_url = "http://127.0.0.1:5003/post"
 
 class Symbolics_WebQSP_novar():
 
-    def __init__(self, seq, mode='online'):
+    def __init__(self, seq, tid='-1', mode='online'):
         # local server
         if mode != 'online':
             print("loading local knowledge base...")
@@ -37,6 +38,7 @@ class Symbolics_WebQSP_novar():
             self.graph = None
             self.type_dict = None
         self.seq = seq
+        self.tid = tid
         self.answer = {}
         self.temp_variable_list = []  # to store temp variable
         self.temp_set = set([])
@@ -113,8 +115,8 @@ class Symbolics_WebQSP_novar():
                 # A5: Filter not equal
                 elif ("A5" in symbolic):
                     try:
-                        if len(symbolic[key]) == 1:
-                            e = self.answer
+                        if len(symbolic[key]) == 1 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
                             r = 'NONE'
                             t = symbolic[key][0].strip()
                             self.answer = self.filter_not_equal(e, r, t)
@@ -133,8 +135,8 @@ class Symbolics_WebQSP_novar():
                 # A7: order_value_limit: order e by value and get top n
                 elif ("A7" in symbolic):
                     try:
-                        if len(symbolic[key]) == 2:
-                            e = self.answer
+                        if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
                             r = symbolic[key][0].strip()
                             t = str(symbolic[key][1]).strip()
                             self.answer = self.order_value_limit(e, r, t, False)
@@ -142,11 +144,11 @@ class Symbolics_WebQSP_novar():
                         print('ERROR! The action is order_value_limit(%s,%s,%s).' % (e, r, t))
                     finally:
                         self.print_answer()
-                # A7: order_value_desc_limit: order desc e by value and get top n
+                # A8: order_value_desc_limit: order desc e by value and get top n
                 elif ("A8" in symbolic):
                     try:
-                        if len(symbolic[key]) == 2:
-                            e = self.answer
+                        if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
                             r = symbolic[key][0].strip()
                             t = str(symbolic[key][1]).strip()
                             self.answer = self.order_value_limit(e, r, t, True)
@@ -159,6 +161,30 @@ class Symbolics_WebQSP_novar():
                     try:
                         # in this way not use
                         self.answer.update(self.union(e, r, t))
+                    except:
+                        print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
+                    finally:
+                        self.print_answer()
+                # A10: date_less_or_equal(r，t)
+                elif ("A10" in symbolic):
+                    try:
+                        if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            self.answer = self.date_less_or_equal(e, r, t)
+                    except:
+                        print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
+                    finally:
+                        self.print_answer()
+                # A11: date_greater_or_equal(r，t)
+                elif ("A11" in symbolic):
+                    try:
+                        if len(symbolic[key]) == 2 and "ANSWER" in self.answer:
+                            e = self.answer["ANSWER"]
+                            r = symbolic[key][0].strip()
+                            t = str(symbolic[key][1]).strip()
+                            self.answer = self.date_greater_or_equal(e, r, t)
                     except:
                         print('ERROR! The action is Inter(%s,%s,%s).' % (e, r, t))
                     finally:
@@ -212,8 +238,10 @@ class Symbolics_WebQSP_novar():
                 jsonpost = json.dumps(json_pack)
                 # result_content = requests.post(post_url,json=json_pack)
                 # print(result_content)
-                content, content_result = requests.post(post_url, json=jsonpost).json()['content']
-                if content is not None and content_result == 0:
+                x = requests.post(post_url, json=jsonpost)
+                xx = x.json()
+                content, result = xx['content']
+                if content is not None:
                     content = set(content)
             except Exception as error:
                 print("ERROR for command: select_e_str(%s,%s,%s)" % (e, r, t), error)
@@ -240,11 +268,7 @@ class Symbolics_WebQSP_novar():
                 # if "?" in e:
                     json_pack = dict()
                     json_pack['op'] = "get_filter_answer"
-                    # if e in self.answer:
-                    #     json_pack['e'] = list(self.answer[e])
-                    # else:
-                    #     json_pack['e'] = []
-                    json_pack['e'] = list(e)
+                    json_pack['e'] = list(self.answer["ANSWER"]) if "ANSWER" in self.answer else []
                     json_pack['r'] = r
                     json_pack['t'] = t
                     jsonpost = json.dumps(json_pack)
@@ -340,6 +364,41 @@ class Symbolics_WebQSP_novar():
             finally:
                 return intermediate_result
 
+    def is_date(self, x):
+        x_orig = x
+        if x.startswith('m.'):
+            return False
+        if len(x.split('-')) == 1:
+            x = x + '-01-01'
+        elif len(x.split('-')) == 2:
+            x = x + '-01'
+        try:
+            yyyy = int(x.split('-')[0])
+            mm = int(x.split('-')[1])
+            dd = int(x.split('-')[2])
+            d = datetime.datetime(yyyy, mm, dd)
+            return True
+        except Exception as e:
+            # traceback.print_exc(e)
+            return False
+
+    def get_date(self, x):
+        x_orig = x
+        if x.startswith('m.'):
+            return False
+        if len(x.split('-')) == 1:
+            x = x + '-01-01'
+        elif len(x.split('-')) == 2:
+            x = x + '-01'
+        try:
+            yyyy = int(x.split('-')[0])
+            mm = int(x.split('-')[1])
+            dd = int(x.split('-')[2])
+            d = datetime.datetime(yyyy, mm, dd)
+            return d
+        except:
+            return None
+
     # A6
     def map_value(self, e, r, t):
         intermediate_result = {}
@@ -349,22 +408,24 @@ class Symbolics_WebQSP_novar():
             return {}
         else:
             try:
-                if "?" in e:
-                    json_pack = dict()
-                    json_pack['op'] = "map_value"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
-                    json_pack['r'] = r
-                    jsonpost = json.dumps(json_pack)
-                    content, content_result = requests.post(post_url, json=jsonpost).json()['content']
-                    # print(content)
-                    if content is not None and content_result == 0:
-                        content = content
-                    else:
-                        content = {}
-                    intermediate_result = content
+                json_pack = dict()
+                json_pack['op'] = "map_value"
+
+                date_list = []
+                for e_item in e:
+                    if self.is_date(e_item):
+                        # date_list.append(self.get_date(e_item))
+                        date_list.append(str(e_item))
+                json_pack['e'] = list(e) if len(date_list) == 0 else date_list
+                json_pack['r'] = r
+                jsonpost = json.dumps(json_pack)
+                content, content_result = requests.post(post_url, json=jsonpost).json()['content']
+                # print(content)
+                if content is not None and content_result == 0:
+                    content = content
+                else:
+                    content = {}
+                intermediate_result = content
             except:
                 print("ERROR for command: map_value(%s,%s,%s)" % (e, r, t))
             finally:
@@ -434,22 +495,19 @@ class Symbolics_WebQSP_novar():
             return {}
         else:
             try:
-                if "?" in e:
+                if self.is_date(date):
                     json_pack = dict()
                     json_pack['op'] = "execute_select_oper_date_lt"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
+                    json_pack['e'] = list(e)
                     json_pack['r'] = r
-                    json_pack['date'] = date
+                    json_pack['date'] = str(date)
                     jsonpost = json.dumps(json_pack)
                     content, content_result = requests.post(post_url, json=jsonpost).json()['content']
                     if content is not None and content_result == 0:
                         content = set(content)
                     else:
                         content = set([])
-                    intermediate_result = {e: content}
+                    intermediate_result = {'ANSWER': content}
             except:
                 print("ERROR for command: date_less_or_equal(%s, %s)" % (e, date))
             finally:
@@ -464,24 +522,21 @@ class Symbolics_WebQSP_novar():
             return {}
         else:
             try:
-                if "?" in e:
+                if self.is_date(date):
                     json_pack = dict()
                     json_pack['op'] = "execute_select_oper_date_gt"
-                    if e in self.answer:
-                        json_pack['e'] = list(self.answer[e])
-                    else:
-                        json_pack['e'] = []
+                    json_pack['e'] = list(e)
                     json_pack['r'] = r
-                    json_pack['date'] = date
+                    json_pack['date'] = str(date)
                     jsonpost = json.dumps(json_pack)
                     content, content_result = requests.post(post_url, json=jsonpost).json()['content']
                     if content is not None and content_result == 0:
                         content = set(content)
                     else:
                         content = set([])
-                    intermediate_result = {e: content}
+                    intermediate_result = {'ANSWER': content}
             except:
-                print("ERROR for command: date_less_or_equal(%s, %s)" % (e, date))
+                print("ERROR for command: date_greater_or_equal(%s, %s)" % (e, date))
             finally:
                 return intermediate_result
 

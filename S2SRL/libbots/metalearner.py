@@ -297,7 +297,7 @@ class MetaLearner(object):
         for i in range(number_of_supportsets):
             batch = list()
             logprob_for_samples = list()
-            # Samples elements from [0,..,len(weights)-1] with probability of top 100 samples.
+            # Samples elements from [0,..,len(weights)-1] with probability of top N+45 samples.
             # You can also use the keyword replace=False to change the behavior so that sampling is without replacement.
             draw = list(WeightedRandomSampler(order_softmax_output_prob, N, replacement=False))
             draw_list = [order_list[j] for j in draw]
@@ -953,8 +953,8 @@ class MetaLearner(object):
 
     # Using first-order to approximate the result of 2nd order MAML.
     def first_order_sample(self, tasks, old_param_dict = None, first_order=False, dial_shown=True, epoch_count=0, batch_count=0):
-        """Sample trajectories (before and after the update of the parameters)
-        for all the tasks `tasks`.
+        """
+        Sample trajectories (before and after the update of the parameters) for all the tasks `tasks`.
         Here number of tasks is 1.
         """
         task_losses = []
@@ -974,7 +974,7 @@ class MetaLearner(object):
             self.net.encoder.flatten_parameters()
             self.net.decoder.flatten_parameters()
             self.net.zero_grad()
-            log.info("Task %s is training..." % (str(task[1]['qid'])))
+            # log.info("Task %s is training..." % (str(task[1]['qid'])))
             # Establish support set.
             support_set = self.establish_support_set(task, self.steps, self.weak_flag, self.train_data_support_944K)
 
@@ -985,7 +985,7 @@ class MetaLearner(object):
                 skipped_samples += inner_skipped_samples
                 true_reward_argmax_batch.extend(true_reward_argmax_step)
                 true_reward_sample_batch.extend(true_reward_sample_step)
-                log.info("        Epoch %d, Batch %d, support sample %s is trained!" % (epoch_count, batch_count, str(step_sample[1]['qid'])))
+                # log.info("        Epoch %d, Batch %d, support sample %s is trained!" % (epoch_count, batch_count, str(step_sample[1]['qid'])))
                 # Inner update.
                 inner_loss.backward()
                 # To conduct a gradient ascent to minimize the loss (which is to maximize the reward).
@@ -1045,7 +1045,7 @@ class MetaLearner(object):
             self.net.encoder.flatten_parameters()
             self.net.decoder.flatten_parameters()
             self.net.zero_grad()
-            log.info("Task %s for reptile is training..." % (str(task[1]['qid'])))
+            # log.info("Task %s for reptile is training..." % (str(task[1]['qid'])))
             # Establish support set.
             # If random_flag==True, randomly select support samples in the same question category.
             if random:
@@ -1102,7 +1102,7 @@ class MetaLearner(object):
             skipped_samples += outer_skipped_samples
             true_reward_argmax_batch.extend(true_reward_argmax_step)
             true_reward_sample_batch.extend(true_reward_sample_step)
-            # log.info("Epoch %d, Batch %d, task %s is trained!" % (epoch_count, batch_count, str(task[1]['qid'])))
+            log.info("Epoch %d, Batch %d, task %s is trained!" % (epoch_count, batch_count, str(task[1]['qid'])))
         meta_losses = torch.sum(torch.stack(task_losses))
         return meta_losses, running_vars, total_samples, skipped_samples, true_reward_argmax_batch, true_reward_sample_batch
 
@@ -1121,7 +1121,7 @@ class MetaLearner(object):
         retriever_skipped_samples = 0
 
         for task in tasks:
-            log.info("Task %s for retriever is training..." % (str(task[1]['qid'])))
+            # log.info("Task %s for retriever is training..." % (str(task[1]['qid'])))
 
             # Argmax as baseline.
             # For each task, the initial parameters are the same, i.e., the value stored in old_param_dict.
@@ -1222,7 +1222,7 @@ class MetaLearner(object):
                 retriever_true_reward_sample_batch.append(retriever_sample_reward)
                 retriever_net_advantages.extend([retriever_sample_reward - retriever_argmax_reward] * len(support_set))
 
-            # log.info("Epoch %d, Batch %d, task %s is trained!" % (epoch_count, batch_count, str(task[1]['qid'])))
+            log.info("Epoch %d, Batch %d, task %s for retriever is trained!" % (epoch_count, batch_count, str(task[1]['qid'])))
 
         log_prob_v = torch.cat(retriever_net_policies)
         log_prob_v = log_prob_v.cuda()
@@ -1233,6 +1233,8 @@ class MetaLearner(object):
         log_prob_actions_v = log_prob_v * adv_v
         log_prob_actions_v = log_prob_actions_v.cuda()
 
+        # todo: sum or mean? The actions for one question should be summed up first,
+        #  then average each question's summed value.
         loss_policy_v = -log_prob_actions_v.mean()
         loss_policy_v = loss_policy_v.cuda()
 
@@ -1320,7 +1322,7 @@ class MetaLearner(object):
             skipped_samples += inner_skipped_samples
             true_reward_argmax_batch.extend(true_reward_argmax_step)
             true_reward_sample_batch.extend(true_reward_sample_step)
-            log.info("        Epoch %d, Batch %d, support sample %s is trained!" % (epoch_count, batch_count, str(step_sample[1]['qid'])))
+            # log.info("        Epoch %d, Batch %d, support sample %s is trained!" % (epoch_count, batch_count, str(step_sample[1]['qid'])))
 
             # Get the new parameters after a one-step gradient update
             # Each module parameter is computed as parameter = parameter - step_size * grad.

@@ -126,6 +126,45 @@ for root, dirnames, filenames in os.walk('/home/zhangjingyao/demo/'):
     for f in filenames:
         countDict[f] = 0
 
+def print_context_int_py3(qa,root,fname):
+    fname1 = root + fname + '.txt'
+    with open(fname1, 'a+') as f:
+        f.write('context_utterance ' + str(qa['context_utterance']))
+        f.write('context_ints ' + str(qa['context_ints']))
+    # fname1 = root + fname + '_onlyints.txt'
+    # with open(fname1, 'a+') as f:
+    #     s = str(qa['context_ints']).strip()
+    #     if s != '':
+    #         f.write(s+'\n')
+
+def print_qa_py3(qa,root,fname):
+    fname = root+fname+'.txt'
+    #if(os.path.exists(fname) and os.path.getsize(fname)>102400): return
+
+    with open(fname,'a+') as f:
+        # Move file pointer to the start of the file.
+        f.seek(0)
+        flag = 0
+        lines = f.readlines()
+        for line in lines:
+            if line.startswith("state"):
+                flag += 1
+            # if flag == 20:
+            #     return
+        f.write(str(flag)+"\n")
+        f.write('state: ' + str(qa['state']))
+        f.write('context_utterance: ' + str(qa['context_utterance']))
+        f.write('context_relations: ' + str(qa['context_relations']))
+        f.write('context_entities: ' + str(qa['context_entities']))
+        f.write('context_types: ' + str(qa['context_types']))
+        f.write('context: ' + str(qa['context']))
+        f.write('orig_response: ' + str(qa['orig_response']))
+        f.write('response_entities: ' + str(qa['response_entities']))
+        f.write('----------------------------\n')
+        f.write('SYMBOLIC:\n')
+        f.write('CODE:\n')
+        f.write('----------------------------\n')
+
 def print_qa(qa,root,fname):
     countDict[fname+'.txt']+=1
     fname = root+fname+'.txt'
@@ -153,10 +192,44 @@ def print_qa(qa,root,fname):
     print (f, "CODE:\n")
     print (f, "----------------------------")
 
-if __name__=="__main__":
+def get_trainingset_for_annotation():
+    root = "../data/demoqa2/"
+    qa_set = load_qadata("../data/official_downloaded_data/10k/train_10k")
+    qa_map = getQA_by_state_py3(qa_set)
+    # for qa in qa_map['Quantitative Reasoning (Count) (All)\n']:
+    #     print_qa_py3(qa, root, 'train_count_all')
+    # for qa in qa_map['Quantitative Reasoning (All)\n']:
+    #     print_qa_py3(qa, root, 'train_quanti_all')
+    for qa in qa_map['Verification (Boolean) (All)\n']:
+        print_qa_py3(qa, root, 'train_bool_all')
+
+# Get question and context_ints info for training dataset.
+def get_context_ints_trainingset(root, path):
+    qa_set = load_qadata(path)
+    qa_map = getQA_by_state_py3(qa_set)
+    type = 'context_ints_' + path.split('_')[-1]
+    count = 0
+    for k, v in qa_map.items():
+        for qa in v:
+            print_context_int_py3(qa, root, type)
+            count += 1
+            if count % 10000 == 0:
+                print(count)
 
 
+if __name__ == "__main__":
+    get_trainingset_for_annotation()
+    # root = "../data/demoqa2/"
+    # path = "../data/official_downloaded_data/10k/train_10k"
+    # get_context_ints_trainingset(root, path)
+    #
+    # path = "../data/official_downloaded_data/944k/train_944k"
+    # get_context_ints_trainingset(root, path)
 
+    # path = "../data/official_downloaded_data/156k_testfull"
+    # get_context_ints_trainingset(root, path)
+
+    '''
     qa_set = load_qadata("/data/zjy/valid_full")
     qa_map = getQA_by_state(qa_set)
 
@@ -249,3 +322,4 @@ if __name__=="__main__":
         # print k,v
         total+=v
     # print "total", total
+    '''

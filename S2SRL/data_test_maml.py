@@ -22,11 +22,11 @@ if __name__ == "__main__":
     # sys.argv = ['data_test.py', '-m=bleu_0.984_09.dat', '-p=final', '--n=rl_even']
     # command line parameters for final test (subset data)
     # Args for 1st-order maml.
-    # sys.argv = ['data_test_maml.py', '-m=epoch_009_0.398_0.796.dat', '-p=sample_final_maml', '--n=maml_batch8_att=0_newdata2k_1storder_1task', '--cuda', '-s=5', '-a=0', '--att=0', '--lstm=1', '--fast-lr=0.1', '--meta-lr=1e-4', '--steps=5', '--batches=1', '--weak=1', '--embed-grad']
+    sys.argv = ['data_test_maml.py', '-m=epoch_025_0.741_0.710.dat', '-p=sample_final_maml', '--n=maml_newdata2k_1storder_1e-3', '--cuda', '-s=5', '-a=0', '--att=0', '--lstm=1', '--fast-lr=1e-3', '--meta-lr=1e-4', '--steps=5', '--batches=1', '--weak=1', '--embed-grad']
     # Args for reptile.
-    sys.argv = ['data_test_maml.py', '-m=epoch_019_0.767_0.741.dat', '-p=sample_final_maml',
-                '--n=maml_att=0_newdata2k_reptile_random_retriever', '--cuda', '-s=5', '-a=0', '--att=0', '--lstm=1',
-                '--fast-lr=1e-4', '--meta-lr=1e-4', '--steps=5', '--batches=1', '--weak=1', '--embed-grad', '--retriever-random']
+    # sys.argv = ['data_test_maml.py', '-m=epoch_019_0.767_0.741.dat', '-p=sample_final_maml',
+    #             '--n=maml_att=0_newdata2k_reptile_random_retriever', '--cuda', '-s=5', '-a=0', '--att=0', '--lstm=1',
+    #             '--fast-lr=1e-4', '--meta-lr=1e-4', '--steps=5', '--batches=1', '--weak=1', '--embed-grad', '--retriever-random']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True,
     #                     help="Category to use for training. Empty string to train on full processDataset")

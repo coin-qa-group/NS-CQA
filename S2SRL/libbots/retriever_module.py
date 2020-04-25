@@ -21,6 +21,7 @@ class RetrieverModel(nn.Module):
         self.output_layer = nn.Linear(hid2_size, output_size)
         self.device = device
 
+    # todo activation function? negative sampling?
     def forward(self, query_tensor, range):
         documents = self.pack_input(range)
         query_tensor = self.hid_layer1(query_tensor)

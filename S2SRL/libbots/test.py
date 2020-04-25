@@ -2,7 +2,9 @@ import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 import torch
+import nltk
 import math
+from random import randrange
 KEY_ATTN_SCORE = 'attention_score'
 
 # (5, 3, 256) & (5, 5, 256);
@@ -67,8 +69,66 @@ def forward_step(output):
     print(predicted_softmax.size())
     return predicted_softmax
 
+# To compute the Jaccard score between action sequences s1 and s2.
+def jaccard_similarity(s1, s2):
+    if s1 is None or len(s1) == 0:
+        return 0.0
+    elif s2 is None or len(s2) == 0:
+        return 0.0
+    else:
+        jd = nltk.jaccard_distance(set(s1), set(s2))
+        return 1.0 - jd
+
+def levenshtein_similarity(source, target):
+    """
+    To compute the edit-distance between source and target.
+    If source is list, regard each element in the list as a character.
+    :param list1
+    :param list2
+    :return:
+    """
+    if source is None or len(source) == 0:
+        return 0.0
+    elif target is None or len(target) == 0:
+        return 0.0
+    elif type(source) != type(target):
+        return 0.0
+    matrix = [[i + j for j in range(len(target) + 1)] for i in range(len(source) + 1)]
+    for i in range(1, len(source) + 1):
+        for j in range(1, len(target) + 1):
+            if (source[i - 1] == target[j - 1]):
+                d = 0
+            else:
+                d = 1
+
+            matrix[i][j] = min(matrix[i - 1][j] + 1, matrix[i][j - 1] + 1, matrix[i - 1][j - 1] + d)
+    distance = float(matrix[len(source)][len(target)])
+    length = float(len(source) if len(source) >= len(target) else len(target))
+    return 1.0 - distance / length
+
+# To judge whether s1 and s2 are same lists or not.
+def duplicate(s1,s2):
+    compare = lambda a,b: len(a)==len(b) and len(a)==sum([1 for i,j in zip(a,b) if i==j])
+    return compare(s1, s2)
+
 if __name__ == "__main__":
-    max_length = 50
+    s1 = ['A2', '(', 'TYPE1', '-', 'RELATION1', 'TYPE2', ')', 'A6', '(', 'ENTITY1', ')']
+    s2 = ['A2', '(', 'TYPE2', '-', 'RELATION1', 'TYPE1', ')', 'A6', '(', 'ENTITY1', ')']
+    # print(jaccard_similarity(s1, s2))
+    # print(levenshtein_similarity(s2, s1))
+
+    # print(s1)
+    # random_index = randrange(0, len(s1))
+    # print(random_index)
+    # s1.pop(random_index)
+    # print(s1)
+    #
+    # sum_list = [1, 2, 3]
+    # print(sum(sum_list))
+
+    print(duplicate(s1, s2))
+
+    '''max_length = 50
     batch_size = 5
     eos_id = 2
     ret_dict = dict()
@@ -189,4 +249,4 @@ if __name__ == "__main__":
     # grad = None;
     print(get_grad(xx, xx))
     # grad = None;
-    print(get_grad(x, xx))
+    print(get_grad(x, xx))'''
