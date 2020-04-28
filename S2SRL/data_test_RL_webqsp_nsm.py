@@ -22,8 +22,8 @@ if __name__ == "__main__":
     # command line parameters for final test (subset data)
     # sys.argv = ['data_test_RL_webqsp.py', '-m=epoch_010_0.557_0.000.dat', '-p=rl', '--n=crossent_even', '--att=1', '--lstm=1']
     sys.argv = ['train_scst_nsm_webqsp.py', '--cuda',
-                '-l=../data/saves/webqsp/crossent_even_att=0_withINT/epoch_029_0.536_0.610.dat',
-                '-m=epoch_029_0.536_0.610.dat',
+                '-l=../data/saves/webqsp/crossent_even_att=0_withINT/truereward_0.610_00.dat',
+                '-m=truereward_0.610_00.dat',
                 '-p=rl',
                 '-n=rl_TR_1%_batch8_att=0_withINT_NSM', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int',
                 '-w2v=300', '--beam_width=10', '--NSM']
