@@ -97,6 +97,8 @@ if __name__ == "__main__":
                         help="0-1 or adaptive reward")
     parser.add_argument("--disable-skip", default=False, action='store_true',
                         help="Disable skipping of samples with high argmax BLEU")
+    parser.add_argument("--BeamSearch", default=False, action='store_true',
+                        help="Using beam search for decoding")
     parser.add_argument("--CHER", default=False, action='store_true',
                         help="Curriculum-guided Hindsight Experience Replay")
     # Choose the function to compute reward (0-1 or adaptive reward).
@@ -148,6 +150,10 @@ if __name__ == "__main__":
         log.info("Using LSTM mechanism to train the SEQ2SEQ model...")
     else:
         log.info("Using RNN mechanism to train the SEQ2SEQ model...")
+    if args.BeamSearch:
+        log.info("Using beam search for decoding...")
+    else:
+        log.info("Using chain sampling for decoding...")
     if args.CHER:
         log.info("Using CHER mechanism to train the SEQ2SEQ model...")
     if args.MonteCarlo:
@@ -273,15 +279,12 @@ if __name__ == "__main__":
                         log.info("Input: %s", utils.untokenize(data.decode_words(inp_idx, rev_emb_dict)))
                         orig_response = qa_info['orig_response']
                         log.info("orig_response: %s", orig_response)
-                        log.info("Argmax: %s, reward=%.4f", utils.untokenize(data.decode_words(actions, rev_emb_dict)),
-                                 argmax_reward)
+                        log.info("Argmax: %s, reward=%.4f", utils.untokenize(data.decode_words(actions, rev_emb_dict)), argmax_reward)
 
-                    sample_logits_list, action_sequence_list = net.beam_decode(hid=item_enc, seq_len=data.MAX_TOKENS,
-                                                                               context=context[idx],
-                                                                               start_token=beg_token,
-                                                                               stop_at_token=end_token,
-                                                                               beam_width=args.beam_width,
-                                                                               topk=args.samples)
+                    if args.BeamSearch:
+                        sample_logits_list, action_sequence_list = net.beam_decode(hid=item_enc, seq_len=data.MAX_TOKENS, context=context[idx], start_token=beg_token, stop_at_token=end_token, beam_width=args.beam_width, topk=args.samples)
+                    else:
+                        chain_sampling_action_memory = []
 
                     qid = qa_info['qid']
                     action_memory = list()
@@ -292,10 +295,26 @@ if __name__ == "__main__":
                     inner_net_advantages = []
 
                     for sample_index in range(args.samples):
-                        # 'r_sample' is the list of out_logits list and 'actions' is the list of output tokens.
-                        # The output tokens are sampled following probability by using chain_sampling.
-                        actions = action_sequence_list[sample_index]
-                        r_sample = sample_logits_list[sample_index]
+                        if args.BeamSearch:
+                            # 'r_sample' is the list of out_logits list and 'actions' is the list of output tokens.
+                            # The output tokens are sampled following probability by using chain_sampling.
+                            actions = action_sequence_list[sample_index]
+                            r_sample = sample_logits_list[sample_index]
+                        else:
+                            r_sample, actions = net.decode_chain_sampling(item_enc, beg_embedding, data.MAX_TOKENS,
+                                                                          context[idx], stop_at_token=end_token)
+                            # Omit duplicate action sequence to decrease the computing time and to avoid the case that
+                            # the probability of such kind of duplicate action sequences would be increased redundantly and abnormally.
+                            duplicate_flag = False
+                            if len(chain_sampling_action_memory) > 0:
+                                for temp_list in chain_sampling_action_memory:
+                                    if utils.duplicate(temp_list, actions):
+                                        duplicate_flag = True
+                                        break
+                            if not duplicate_flag:
+                                chain_sampling_action_memory.append(actions)
+                            else:
+                                continue
 
                         # Show what the output action sequence is.
                         action_tokens = []
