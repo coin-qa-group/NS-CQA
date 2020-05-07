@@ -22,18 +22,16 @@ if __name__ == "__main__":
     # command line parameters for final test (subset data)
     # sys.argv = ['data_test_RL_webqsp.py', '-m=epoch_010_0.557_0.000.dat', '-p=rl', '--n=crossent_even', '--att=1', '--lstm=1']
     sys.argv = ['train_scst_nsm_webqsp.py', '--cuda',
-                '-l=../data/saves/webqsp/crossent_even_att=0_withINT/truereward_0.610_00.dat',
-                '-m=truereward_0.610_00.dat',
+                '-m=epoch_099_0.695_0.000.dat',
                 '-p=rl',
-                '-n=rl_TR_1%_batch8_att=0_withINT_NSM', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int',
+                '-n=RL',
+                '-s=5', '-a=0', '--att=0', '--lstm=1', '--int',
                 '-w2v=300', '--beam_width=10', '--NSM']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. Empty string to train on full processDataset")
     parser.add_argument("--cuda", action='store_true', default=False, help="Enable cuda")
     parser.add_argument("-n", "--name", required=True, help="Name of the run")
-    parser.add_argument("-l", "--load", required=True,
-                        help="Load the pre-trained model whereby continue training the RL mode")
     parser.add_argument("-p", "--pred", required=True, help="the test processDataset format, " \
                                                             "py is one-to-one (one sentence with one reference), rl is one-to-many")
     parser.add_argument("-m", "--model", required=True, help="Model name to load")
@@ -106,10 +104,7 @@ if __name__ == "__main__":
     sum_bleu = 0.0
 
     sum_f1 = 0.0
-
     sum_turereward_f1 = 0.0
-
-
     test_dataset_count = 0
     token_string_list = list()
     refer_string_list = list()
@@ -126,7 +121,7 @@ if __name__ == "__main__":
         # references = [seq[1:] if seq[1:] != '' else ['NONE'] for seq in targets]
         token_string, reference_string = '', ''
         for token in tokens:
-            if token in rev_emb_dict and rev_emb_dict.get(token)!= '#END':
+            if token in rev_emb_dict and rev_emb_dict.get(token) != '#END':
                 token_string += str(rev_emb_dict.get(token)).upper() + ' '
         token_string = token_string.strip()
         # log.info("%d PREDICT: %s", test_dataset_count, token_string)
@@ -168,7 +163,7 @@ if __name__ == "__main__":
 
 
         true_reward_F1score = utils.calc_True_Reward_webqsp_novar(action_tokens, targets, False)
-        print("true_reward_F1score", true_reward_F1score)
+        print("true_reward_F1 score", true_reward_F1score)
         sum_turereward_f1 += true_reward_F1score
 
         intersec = set(tokens).intersection(set(references[0]))

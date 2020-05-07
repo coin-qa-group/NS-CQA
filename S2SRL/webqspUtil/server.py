@@ -177,8 +177,9 @@ class Interpreter():
             if self.is_kb_consistent(e_item, r):
                 e_item_date_list = self.freebase_kb[e_item][r]
                 if len(e_item_date_list) > 0:
-                    if self.convert_to_date(e_item_date_list[0]) <= self.convert_to_date(date):
-                        right_date_e_list.append(e_item)
+                    if self.convert_to_date(e_item_date_list[0]) is not None and self.convert_to_date(date) is not None:
+                        if self.convert_to_date(e_item_date_list[0]) <= self.convert_to_date(date):
+                            right_date_e_list.append(e_item)
             else:
                 right_date_e_list.append(e_item)
         return right_date_e_list, 0
@@ -193,8 +194,9 @@ class Interpreter():
             if self.is_kb_consistent(e_item, r):
                 e_item_date_list = self.freebase_kb[e_item][r]
                 if len(e_item_date_list) > 0:
-                    if self.convert_to_date(e_item_date_list[0]) >= self.convert_to_date(date):
-                        right_date_e_list.append(e_item)
+                    if self.convert_to_date(e_item_date_list[0]) is not None and self.convert_to_date(date) is not None:
+                        if self.convert_to_date(e_item_date_list[0]) >= self.convert_to_date(date):
+                            right_date_e_list.append(e_item)
             else:
                 right_date_e_list.append(e_item)
         return right_date_e_list, 0

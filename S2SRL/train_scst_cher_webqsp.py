@@ -17,14 +17,14 @@ import ptan
 import json
 import math
 
-SAVES_DIR = "../data/saves/webqso_cher"
+SAVES_DIR = "../data/saves/webqso_cher2_chain_epoch_020_0.984_0.964_0506_100%"
 
-BATCH_SIZE = 32
+BATCH_SIZE = 64
 LEARNING_RATE = 1e-4
-MAX_EPOCHS = 30
+MAX_EPOCHS = 100
 MAX_TOKENS = 40
 MAX_TOKENS_INT = 43
-TRAIN_RATIO = 0.985
+TRAIN_RATIO = 1.0
 GAMMA = 0.05
 MAX_MEMORY_BUFFER_SIZE = 10
 # ALPHA is the bonus scalar.
@@ -66,7 +66,10 @@ def run_test(test_data, net, rev_emb_dict, end_token, device="cuda"):
         # reward = random.random()
         argmax_reward_sum += float(reward)
         argmax_reward_count += 1
-    return float(argmax_reward_sum) / float(argmax_reward_count)
+    if argmax_reward_count > 0:
+        return float(argmax_reward_sum) / float(argmax_reward_count)
+    else:
+        return 0.0
 
 
 if __name__ == "__main__":
@@ -74,7 +77,7 @@ if __name__ == "__main__":
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
     sys.argv = ['train_scst_cher.py', '--cuda',
-                '-l=../data/saves/webqsp/crossent_even_att=0_withINT/epoch_000_0.743_0.756.dat',
+                '-l=../data/saves/webqsp/crossent_even_att=0_withINT/epoch_020_0.984_0.964.dat',
                 '-n=rl_TR_1%_batch8_att=0_withINT_CHER_test', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int',
                 '-w2v=300', '--beam_width=10', '--CHER', '--MonteCarlo']
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
