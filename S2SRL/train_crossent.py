@@ -33,6 +33,13 @@ TRAIN_ACTION_PATH_INT = '../data/auto_QA_data/mask_even_1.0%/PT_train_INT.action
 DIC_PATH_INT = '../data/auto_QA_data/share_INT.question'
 # DIC_PATH_INT = '../data/auto_QA_data/share_944K_INT.question'
 
+TRAIN_QUESTION_PATH_WEBQSP = '../data/webqsp_data/mask/PT_train.question'
+TRAIN_ACTION_PATH_WEBQSP = '../data/webqsp_data/mask/PT_train.action'
+DIC_PATH_WEBQSP = '../data/webqsp_data/share.webqsp.question'
+TRAIN_QUESTION_PATH_INT_WEBQSP = '../data/webqsp_data/mask/PT_train.question'
+TRAIN_ACTION_PATH_INT_WEBQSP = '../data/webqsp_data/mask/PT_train.action'
+DIC_PATH_INT_WEBQSP = '../data/webqsp_data/share.webqsp.question'
+
 def run_test(test_data, net, end_token, device="cuda"):
     bleu_sum = 0.0
     bleu_count = 0
@@ -45,7 +52,7 @@ def run_test(test_data, net, end_token, device="cuda"):
         # The maximum length of the output is defined in class libbots.data.
         _, tokens = net.decode_chain_argmax(enc, input_seq.data[0:1],
                                             seq_len=data.MAX_TOKENS,
-                                            context = context[0],
+                                            context=context[0],
                                             stop_at_token=end_token)
         bleu_sum += utils.calc_bleu(tokens, p2[1:])
         bleu_count += 1
@@ -55,13 +62,21 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
 
     # command line parameters
-    sys.argv = ['train_crossent.py', '--cuda', '--n=crossent_even_1%_att=0_withINT', '--att=0', '--lstm=1', '--int', '-w2v=300']
+    sys.argv = ['train_crossent.py',
+                '--cuda',
+                '-d=csqa',
+                '--n=crossent_even_1%_att=0_withINT',
+                '--att=1',
+                '--lstm=1',
+                '--int',
+                '-w2v=50']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. "
     #                                                   "Empty string to train on full processDataset")
     parser.add_argument("--cuda", action='store_true', default=False,
                         help="Enable cuda")
+    parser.add_argument("-d", "--dataset", default="csqa", help="Name of the dataset")
     parser.add_argument("-n", "--name", required=True, help="Name of the run")
     # Choose the function to compute reward (0-1 or adaptive reward).
     # If a = true, 1 or yes, the adaptive reward is used. Otherwise 0-1 reward is used.
@@ -83,11 +98,18 @@ if __name__ == "__main__":
     # To get the input-output pairs and the relevant dictionary.
     if not args.int:
         log.info("Training model without INT mask information...")
-        phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH, TRAIN_ACTION_PATH, DIC_PATH, MAX_TOKENS)
+        if args.dataset == "csqa":
+            phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH, TRAIN_ACTION_PATH, DIC_PATH, MAX_TOKENS)
+        else:
+            phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH_WEBQSP, TRAIN_ACTION_PATH_WEBQSP, DIC_PATH_WEBQSP, MAX_TOKENS)
+
 
     if args.int:
         log.info("Training model with INT mask information...")
-        phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH_INT, TRAIN_ACTION_PATH_INT, DIC_PATH_INT, MAX_TOKENS_INT)
+        if args.dataset == "csqa":
+            phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH_INT, TRAIN_ACTION_PATH_INT, DIC_PATH_INT, MAX_TOKENS_INT)
+        else:
+            phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH_INT_WEBQSP, TRAIN_ACTION_PATH_INT_WEBQSP, DIC_PATH_INT_WEBQSP, MAX_TOKENS_INT)
 
     # Index -> word.
     rev_emb_dict = {idx: word for word, idx in emb_dict.items()}
