@@ -17,10 +17,10 @@ import ptan
 import json
 import math
 
-SAVES_DIR = "../data/saves"
+SAVES_DIR = "../data/saves/nsm_webqsp"
 
 BATCH_SIZE = 8
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-3
 MAX_EPOCHS = 30
 MAX_TOKENS = 40
 MAX_TOKENS_INT = 43
@@ -30,21 +30,14 @@ MAX_MEMORY_BUFFER_SIZE = 10
 # ALPHA is the bonus scalar.
 # The value of α depends on the scale of task rewards.
 ALPHA = 0.1
-ETA = 0.08
-LAMBDA_0 = 0.1
 
-DIC_PATH = '../data/auto_QA_data/share.question'
-DIC_PATH_INT = '../data/auto_QA_data/share_INT.question'
+DIC_PATH = '../data/webqsp_data/share.webqsp.question'
+DIC_PATH_INT = '../data/webqsp_data/share.webqsp.question'
 # DIC_PATH_INT = '../data/auto_QA_data/share_944K_INT.question'
-TRAIN_QUESTION_ANSWER_PATH = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new.question'
-TRAIN_QUESTION_ANSWER_PATH_INT = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new_INT.question'
-
-DIC_PATH_WEBQSP = '../data/webqsp_data/share.webqsp.question'
-DIC_PATH_INT_WEBQSP = '../data/webqsp_data/share.webqsp.question'
-TRAIN_QUESTION_ANSWER_PATH_WEBQSP = '../data/webqsp_data/final_webqsp_train_RLold.json'
-TRAIN_QUESTION_ANSWER_PATH_INT_WEBQSP = '../data/webqsp_data/final_webqsp_train_RLold.json'
-
+TRAIN_QUESTION_ANSWER_PATH = '../data/webqsp_data/final_webqsp_train_RL.json'
+TRAIN_QUESTION_ANSWER_PATH_INT = '../data/webqsp_data/final_webqsp_train_RL.json'
 log = logging.getLogger("train")
+
 
 
 # Calculate 0-1 sparse reward for samples in test dataset to judge the performance of the model.
@@ -68,14 +61,10 @@ def run_test(test_data, net, rev_emb_dict, end_token, device="cuda"):
             if temp_idx in rev_emb_dict and rev_emb_dict.get(temp_idx) != '#END':
                 action_tokens.append(str(rev_emb_dict.get(temp_idx)).upper())
         # Using 0-1 reward to compute accuracy.
-        if args.dataset == "csqa":
-            reward = utils.calc_True_Reward(action_tokens, p2, False)
-        else:
-            reward = utils.calc_True_Reward_webqsp_novar(action_tokens, p2, False)
+        reward = utils.calc_True_Reward_webqsp_novar(action_tokens, p2, False)
         # reward = random.random()
         argmax_reward_sum += float(reward)
         argmax_reward_count += 1
-
     if argmax_reward_count == 0:
         return 0.0
     else:
@@ -86,19 +75,17 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_cher.py', '--cuda',
-                '-l=../data/saves/crossent_1%_att=0_withINT_w2v=300/pre_bleu_0.956_43.dat',
-                '-d=csqa',
-                '-n=rl_TR_1%_batch8_att=0_withINT_CHER', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=300', '--beam_width=10', '--CHER', '--MonteCarlo', '--BeamSearch']
+    sys.argv = ['train_scst_nsm_webqsp.py', '--cuda',
+                '-l=../data/saves/webqsp/crossent_even_att=0_withINT/epoch_000_0.743_0.756.dat',
+                '-n=rl_TR_1%_batch8_att=0_withINT_NSM', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int',
+                '-w2v=300', '--beam_width=10', '--NSM']
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. Empty string to train on full processDataset")
     parser.add_argument("--cuda", action='store_true', default=False, help="Enable cuda")
-    parser.add_argument("-d", "--dataset", default="csqa", help="Name of the dataset")
     parser.add_argument("-n", "--name", required=True, help="Name of the run")
     parser.add_argument("-l", "--load", required=True,
                         help="Load the pre-trained model whereby continue training the RL mode")
-    parser.add_argument("--memory_buffer_json", default=None, help="Load the recorded action memory for CHER training")
     # Number of decoding samples.
     parser.add_argument("-s", "--samples", type=int, default=4, help="Count of samples in prob mode")
     # The size of the beam search.
@@ -111,10 +98,8 @@ if __name__ == "__main__":
                         help="0-1 or adaptive reward")
     parser.add_argument("--disable-skip", default=False, action='store_true',
                         help="Disable skipping of samples with high argmax BLEU")
-    parser.add_argument("--BeamSearch", default=False, action='store_true',
-                        help="Using beam search for decoding")
-    parser.add_argument("--CHER", default=False, action='store_true',
-                        help="Curriculum-guided Hindsight Experience Replay")
+    parser.add_argument("--NSM", default=False, action='store_true',
+                        help="Neural Symbolic Machine")
     # Choose the function to compute reward (0-1 or adaptive reward).
     # If a = true, 1 or yes, the adaptive reward is used. Otherwise 0-1 reward is used.
     parser.add_argument("--att", type=lambda x: (str(x).lower() in ['true', '1', 'yes']),
@@ -135,20 +120,12 @@ if __name__ == "__main__":
 
     # # List of (question, {question information and answer}) pairs, the training pairs are in format of 1:1.
     if args.int:
-        if args.dataset == "csqa":
-            phrase_pairs, emb_dict = data.load_RL_data_TR_INT(TRAIN_QUESTION_ANSWER_PATH_INT, DIC_PATH_INT,
-                                                              MAX_TOKENS_INT)
-        else:
-            phrase_pairs, emb_dict = data.load_RL_data_TR_INT(TRAIN_QUESTION_ANSWER_PATH_INT_WEBQSP,
-                                                              DIC_PATH_INT_WEBQSP, MAX_TOKENS_INT)
+        phrase_pairs, emb_dict = data.load_RL_data_TR_INT(TRAIN_QUESTION_ANSWER_PATH_INT, DIC_PATH_INT, MAX_TOKENS_INT,
+                                                          bool(args.NSM))
         log.info("Obtained %d phrase pairs with %d uniq words from %s with INT mask information.", len(phrase_pairs),
                  len(emb_dict), TRAIN_QUESTION_ANSWER_PATH_INT)
     else:
-        if args.dataset == "csqa":
-            phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS)
-        else:
-            phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH_WEBQSP, DIC_PATH_WEBQSP,
-                                                          MAX_TOKENS)
+        phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS, bool(args.NSM))
         log.info("Obtained %d phrase pairs with %d uniq words from %s without INT mask information.", len(phrase_pairs),
                  len(emb_dict), TRAIN_QUESTION_ANSWER_PATH)
 
@@ -173,20 +150,10 @@ if __name__ == "__main__":
         log.info("Using LSTM mechanism to train the SEQ2SEQ model...")
     else:
         log.info("Using RNN mechanism to train the SEQ2SEQ model...")
-    if args.BeamSearch:
-        log.info("Using beam search for decoding...")
-    else:
-        log.info("Using chain sampling for decoding...")
-    if args.CHER:
-        log.info("Using CHER mechanism to train the SEQ2SEQ model...")
     if args.MonteCarlo:
         log.info("Using Monte Carlo algorithm for Policy Gradient...")
-
-    memory_buffer = {}
-    if args.memory_buffer_json is not None:
-        log.info("Loading the stored action memory from %s...", str(args.memory_buffer_json))
-        with open(args.memory_buffer_json, 'r', encoding="UTF-8") as load_f:
-            memory_buffer = json.load(load_f)
+    if args.NSM:
+        log.info("Using Neural Symbolic Machine algorithm for RL...")
 
     # Index -> word.
     rev_emb_dict = {idx: word for word, idx in emb_dict.items()}
@@ -218,11 +185,9 @@ if __name__ == "__main__":
         batch_idx = 0
         batch_count = 0
         best_true_reward = None
-
         time_start = time.time()
 
-        # The memory buffer used to maintain the hindsight experience.
-        # The key to the dict is the question ID and the value is the previous actions that could yield some reward.
+        print("start epoch, time: ", time_start)
 
         # Loop in epochs.
         for epoch in range(MAX_EPOCHS):
@@ -233,11 +198,6 @@ if __name__ == "__main__":
             # skipped_samples = 0
             true_reward_argmax = []
             true_reward_sample = []
-
-            if args.CHER:
-                # Compute weights for proximity and diversity in each epoch.
-                # λ = min{1, (1+η)^γ * λ_0} (lambda = min{1, (1+eta)^epochs * lambda_0})
-                lambda_value = min(1.0, float(math.pow(1.0 + ETA, float(epoch) + 1.0) * LAMBDA_0))
 
             for batch in data.iterate_batches(train_data, BATCH_SIZE):
                 batch_idx += 1
@@ -260,9 +220,12 @@ if __name__ == "__main__":
                 net_actions = []
                 net_advantages = []
                 net_losses = []
+                probability_normalization = []
                 # Transform ID to embedding.
                 beg_embedding = net.emb(beg_token)
                 beg_embedding = beg_embedding.cuda()
+
+                nsm_net_losses = []
 
                 for idx, inp_idx in enumerate(input_batch):
                     # # Test whether the input sequence is correctly transformed into indices.
@@ -286,12 +249,14 @@ if __name__ == "__main__":
                     # Get the highest BLEU score as baseline used in self-critic.
                     # If the last parameter is false, it means that the 0-1 reward is used to calculate the accuracy.
                     # Otherwise the adaptive reward is used.
-                    if args.dataset == "csqa":
-                        argmax_reward = utils.calc_True_Reward(action_tokens, qa_info, args.adaptive)
-                    else:
-                        argmax_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
+                    argmax_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
                     # argmax_reward = random.random()
                     true_reward_argmax.append(argmax_reward)
+
+                    if args.NSM and 'pseudo_gold_program_reward' not in qa_info:
+                        pseudo_program_tokens = str(qa_info['pseudo_gold_program']).strip().split()
+                        pseudo_program_reward = utils.calc_True_Reward_webqsp_novar(pseudo_program_tokens, qa_info, args.adaptive)
+                        qa_info['pseudo_gold_program_reward'] = pseudo_program_reward
 
                     # # In this case, the BLEU score is so high that it is not needed to train such case with RL.
                     # if not args.disable_skip and argmax_reward > 0.99:
@@ -305,42 +270,36 @@ if __name__ == "__main__":
                         log.info("Input: %s", utils.untokenize(data.decode_words(inp_idx, rev_emb_dict)))
                         orig_response = qa_info['orig_response']
                         log.info("orig_response: %s", orig_response)
-                        log.info("Argmax: %s, reward=%.4f", utils.untokenize(data.decode_words(actions, rev_emb_dict)), argmax_reward)
+                        log.info("Argmax: %s, reward=%.4f", utils.untokenize(data.decode_words(actions, rev_emb_dict)),
+                                 argmax_reward)
 
-                    if args.BeamSearch:
-                        sample_logits_list, action_sequence_list = net.beam_decode(hid=item_enc, seq_len=data.MAX_TOKENS, context=context[idx], start_token=beg_token, stop_at_token=end_token, beam_width=args.beam_width, topk=args.samples)
-                    else:
-                        chain_sampling_action_memory = []
+                    sample_logits_list, action_sequence_list = net.beam_decode(hid=item_enc, seq_len=data.MAX_TOKENS,
+                                                                               context=context[idx],
+                                                                               start_token=beg_token,
+                                                                               stop_at_token=end_token,
+                                                                               beam_width=args.beam_width,
+                                                                               topk=args.samples)
 
                     qid = qa_info['qid']
-                    action_memory = list()
 
                     # The data for each task in a batch of tasks.
                     inner_net_policies = []
                     inner_net_actions = []
                     inner_net_advantages = []
+                    inner_probability_normalization = []
+
+                    nsm_prob_list = []
+                    nsm_advantage_list = []
+                    nsm_alpha_list = []
 
                     for sample_index in range(args.samples):
-                        if args.BeamSearch:
-                            # 'r_sample' is the list of out_logits list and 'actions' is the list of output tokens.
-                            # The output tokens are sampled following probability by using chain_sampling.
-                            actions = action_sequence_list[sample_index]
-                            r_sample = sample_logits_list[sample_index]
-                        else:
-                            r_sample, actions = net.decode_chain_sampling(item_enc, beg_embedding, data.MAX_TOKENS,
-                                                                          context[idx], stop_at_token=end_token)
-                            # Omit duplicate action sequence to decrease the computing time and to avoid the case that
-                            # the probability of such kind of duplicate action sequences would be increased redundantly and abnormally.
-                            duplicate_flag = False
-                            if len(chain_sampling_action_memory) > 0:
-                                for temp_list in chain_sampling_action_memory:
-                                    if utils.duplicate(temp_list, actions):
-                                        duplicate_flag = True
-                                        break
-                            if not duplicate_flag:
-                                chain_sampling_action_memory.append(actions)
-                            else:
-                                continue
+                        # 'r_sample' is the list of out_logits list and 'actions' is the list of output tokens.
+                        # The output tokens are sampled following probability by using chain_sampling.
+                        if sample_index >= len(action_sequence_list) or sample_index >= len(sample_logits_list):
+                            print("sample_index out of action_sequence_list or sample_logits_list range, sample_index: ", sample_index, len(action_sequence_list), len(sample_logits_list))
+                            continue
+                        actions = action_sequence_list[sample_index]
+                        r_sample = sample_logits_list[sample_index]
 
                         # Show what the output action sequence is.
                         action_tokens = []
@@ -349,23 +308,8 @@ if __name__ == "__main__":
                                 action_tokens.append(str(rev_emb_dict.get(temp_idx)).upper())
                         # If the last parameter is false, it means that the 0-1 reward is used to calculate the accuracy.
                         # Otherwise the adaptive reward is used.
-                        if args.dataset == "csqa":
-                            sample_reward = utils.calc_True_Reward(action_tokens, qa_info, args.adaptive)
-                        else:
-                            sample_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
+                        sample_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
                         # sample_reward = random.random()
-
-                        if args.CHER:
-                            if sample_reward >= argmax_reward and sample_reward > 0.0:
-                            # if sample_reward > 0.0:
-                                action_memory.append(action_tokens)
-                            # Compute reward bonus.
-                            action_buffer = memory_buffer[qid] if qid in memory_buffer else None
-                            F_proximity = utils.calculate_proximity(action_tokens, action_buffer)
-                            F_diversity = utils.calculate_diversity(action_tokens, action_buffer)
-                            reward_bonus = lambda_value * F_proximity + (1.0 - lambda_value) * F_diversity
-                            # Using scalar α to scale the bonus.
-                            regularized_reward_bonus = ALPHA * reward_bonus
 
                         if not dial_shown:
                             log.info("Sample: %s, reward=%.4f",
@@ -376,30 +320,38 @@ if __name__ == "__main__":
                             inner_net_policies.append(r_sample)
                             inner_net_actions.extend(actions)
 
+                        elif args.NSM:
+                            # Transform each action's logits to probabilities.
+                            prob_v = F.softmax(r_sample, dim=1).to(device)
+                            actions_t = torch.LongTensor(actions).to(device)
+                            # Get each action's probability.
+                            prob = prob_v[range(len(actions)), actions_t].to(device)
+                            # Get the probability of the action sequence.
+                            prob_prod = prob.prod().to(device)
+                            # Get the unbiased rewaed.
+                            advantage = sample_reward - argmax_reward
+                            nsm_prob_list.append(prob_prod)
+                            nsm_advantage_list.append(advantage)
+
+                            # Handle alpha value used in NSM.
+                            pseudo_program = str(qa_info['pseudo_gold_program']).strip()
+                            predicted_program = (' '.join(action_tokens)).strip()
+                            if pseudo_program == predicted_program:
+                                nsm_alpha_list.append(float(ALPHA))
+                            else:
+                                nsm_alpha_list.append(0.0)
+                            # When finding a better program, using the better one to replace the worse one.
+                            # If R(C_j) > R(C*) then C* <- C_j;
+                            if sample_reward > qa_info['pseudo_gold_program_reward']:
+                                qa_info['pseudo_gold_program'] = predicted_program
+                                qa_info['pseudo_gold_program_reward'] = sample_reward
+
                         else:
                             # Record the data for all tasks in a batch.
                             net_policies.append(r_sample)
                             net_actions.extend(actions)
 
-                        # Regard argmax_bleu calculated from decode_chain_argmax as baseline used in self-critic.
-                        # Each token has same reward as 'sample_bleu - argmax_bleu'.
-                        # [x] * y: stretch 'x' to [1*y] list in which each element is 'x'.
-
-                        # # If the argmax_reward is 1.0, then whatever the sample_reward is,
-                        # # the probability of actions that get reward = 1.0 could not be further updated.
-                        # # The GAMMA is used to adjust this scenario.
-                        # if argmax_reward == 1.0:
-                        #     net_advantages.extend([sample_reward - argmax_reward + GAMMA] * len(actions))
-                        # else:
-                        #     net_advantages.extend([sample_reward - argmax_reward] * len(actions))
-
-                        if args.CHER:
-                            advantages = [sample_reward - argmax_reward + regularized_reward_bonus] * len(actions)
-                            if args.MonteCarlo:
-                                inner_net_advantages.extend(advantages)
-                            else:
-                                net_advantages.extend(advantages)
-                        else:
+                        if not args.NSM:
                             advantages = [sample_reward - argmax_reward] * len(actions)
                             if args.MonteCarlo:
                                 inner_net_advantages.extend(advantages)
@@ -407,35 +359,31 @@ if __name__ == "__main__":
                                 net_advantages.extend(advantages)
                         true_reward_sample.append(sample_reward)
 
-                    # Update memory_buffer.
-                    if args.CHER and len(action_memory) > 0:
-                        if qid not in memory_buffer:
-                            memory_buffer[qid] = action_memory
-                        else:
-                            q_memory = memory_buffer[qid]
-                            for action_tokens in action_memory:
-                                duplicate_flag = False
-                                if len(q_memory) > 0:
-                                    for temp_list in q_memory:
-                                        if utils.duplicate(temp_list, action_tokens):
-                                            duplicate_flag = True
-                                            break
-                                    if not duplicate_flag:
-                                        # If buffer is full, remove one element randomly.
-                                        if len(q_memory) == MAX_MEMORY_BUFFER_SIZE:
-                                            random_index = randrange(0, len(q_memory))
-                                            q_memory.pop(random_index)
-                                        q_memory.append(action_tokens)
-                                        memory_buffer[qid] = q_memory
-                                else:
-                                    q_memory.append(action_tokens)
-                                    memory_buffer[qid] = q_memory
                     dial_shown = True
-                    # log.info("Epoch %d, Batch %d, Sample %d: %s is trained!", epoch, batch_count, idx, qa_info['qid'])
                     # Compute the loss for each task in a batch.
-                    if args.MonteCarlo:
+                    if args.NSM:
+                        # Sum all the probabilities for all the generated action sequences as Σ(p_j')
+                        question_prob_sum = torch.stack(nsm_prob_list).sum().to(device)
+                        # p_j = (1-α)*p_j/Σ(p_j') + α (if C_j = C*)
+                        # p_j = (1-α)*p_j/Σ(p_j') + 0.0 (if C_j ≠ C*)
+                        nsm_prob = torch.stack(nsm_prob_list).to(device) * (1.0 - float(ALPHA))
+                        nsm_prob_div = torch.div(nsm_prob, question_prob_sum)
+                        nsm_prob_add = torch.add(nsm_prob_div, torch.FloatTensor(nsm_alpha_list).to(device))
+                        prob_v = nsm_prob_add.to(device)
+                        # p_j = log(p_j)
+                        log_prob_v = torch.log(prob_v).to(device)
+                        # J = Σ_j(p_j * adv_j)
+                        log_prob_actions_v = torch.FloatTensor(nsm_advantage_list).to(device) * log_prob_v
+                        log_prob_actions_v = log_prob_actions_v.to(device)
+                        # Monte carlo simulation: 1/j * J.
+                        # Loss is: - 1/j * J.
+                        loss_policy_v = -log_prob_actions_v.mean().to(device)
+                        nsm_net_losses.append(loss_policy_v)
+
+                    elif args.MonteCarlo:
+                        # Logits of all the output tokens whose size is 1 * N;
                         inner_policies_v = torch.cat(inner_net_policies).to(device)
-                        # Indices of all output tokens whose size is 1 * N;
+                        # Indices of all the output tokens whose size is 1 * N;
                         inner_actions_t = torch.LongTensor(inner_net_actions).to(device)
                         # All output tokens reward whose size is 1 *pack_batch N;
                         inner_adv_v = torch.FloatTensor(inner_net_advantages).to(device)
@@ -455,7 +403,7 @@ if __name__ == "__main__":
                         # Record the loss for each task in a batch.
                         net_losses.append(inner_loss_policy_v)
 
-                if not net_policies and not net_losses:
+                if not net_policies and not net_losses and not nsm_net_losses:
                     continue
 
                 # Data for decode_chain_sampling samples and the number of such samples is the same as args.samples parameter.
@@ -463,6 +411,12 @@ if __name__ == "__main__":
                     batch_net_losses = torch.stack(net_losses).to(device)
                     # .mean() is utilized to calculate Mini-Batch Gradient Descent.
                     loss_policy_v = batch_net_losses.mean().to(device)
+
+                elif args.NSM:
+                    # Transform a list of tensors to a tensor.
+                    batch_nsm_net_losses = torch.stack(nsm_net_losses).to(device)
+                    # .mean() is utilized to calculate Mini-Batch Gradient Descent.
+                    nsm_loss_policy_v = batch_nsm_net_losses.mean().to(device)
 
                 else:
                     # Logits of all output tokens whose size is N * output vocab size; N is the number of output tokens of decode_chain_sampling samples.
@@ -484,7 +438,10 @@ if __name__ == "__main__":
                     # .mean() is used to calculate Monte Carlo sampling.
                     loss_policy_v = -log_prob_actions_v.mean().to(device)
 
-                loss_v = loss_policy_v
+                if args.NSM:
+                    loss_v = nsm_loss_policy_v
+                else:
+                    loss_v = loss_policy_v
                 # loss.backward() computes dloss/dx for every parameter x which has requires_grad=True.
                 # These are accumulated into x.grad for every parameter x. In pseudo-code:
                 # x.grad += dloss/dx
@@ -495,15 +452,14 @@ if __name__ == "__main__":
                 # x += -lr * x.grad
                 optimiser.step()
 
-                if not args.MonteCarlo:
+                if not args.MonteCarlo and not args.NSM:
                     tb_tracker.track("advantage", adv_v, batch_idx)
-                tb_tracker.track("loss_policy", loss_policy_v, batch_idx)
                 tb_tracker.track("loss_total", loss_v, batch_idx)
 
                 log.info("Epoch %d, Batch %d is trained!", epoch, batch_count)
 
             # After one epoch, compute the bleus for samples in test dataset.
-            true_reward_test = run_test(test_data, net, rev_emb_dict, end_token, device)
+            true_reward_test = run_test(test_data, net, rev_emb_dict, end_token, str(device))
             # After one epoch, get the average of the decode_chain_argmax bleus for samples in training dataset.
             true_reward_armax = np.mean(true_reward_argmax)
             writer.add_scalar("true_reward_test", true_reward_test, batch_idx)
@@ -523,15 +479,7 @@ if __name__ == "__main__":
             # if epoch % 10 == 0:
             # # The parameters are stored after each epoch.
             torch.save(net.state_dict(), os.path.join(saves_path, "epoch_%03d_%.3f_%.3f.dat" % (
-            epoch, float(true_reward_armax), true_reward_test)))
-
-            # Record the memory buffer for each epoch in case that the training is interrupted.
-            if args.CHER:
-                json_path = os.path.join(saves_path, "action_memory_epoch_%03d_%.3f_%.3f.json" % (
-                    epoch, float(true_reward_armax), true_reward_test))
-                fw = open(json_path, 'w', encoding="UTF-8")
-                fw.writelines(json.dumps(memory_buffer, indent=1, ensure_ascii=False))
-                fw.close()
+                epoch, float(true_reward_armax), true_reward_test)))
 
         time_end = time.time()
         log.info("Training time is %.3fs." % (time_end - time_start))

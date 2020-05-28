@@ -15,10 +15,11 @@ import torch.nn.functional as F
 
 SAVES_DIR = "../data/saves/webqsp"
 
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 LEARNING_RATE = 1e-3
-MAX_EPOCHES = 20
+MAX_EPOCHES = 100
 MAX_TOKENS = 40
+MAX_TOKENS_INT = 43
 
 log = logging.getLogger("train")
 
@@ -27,6 +28,9 @@ TEACHER_PROB = 1.0
 TRAIN_QUESTION_PATH = '../data/webqsp_data/mask/PT_train.question'
 TRAIN_ACTION_PATH = '../data/webqsp_data/mask/PT_train.action'
 DIC_PATH = '../data/webqsp_data/share.webqsp.question'
+TRAIN_QUESTION_PATH_INT = '../data/webqsp_data/mask/PT_train.question'
+TRAIN_ACTION_PATH_INT = '../data/webqsp_data/mask/PT_train.action'
+DIC_PATH_INT = '../data/webqsp_data/share.webqsp.question'
 
 def run_test(test_data, net, end_token, device="cuda"):
     bleu_sum = 0.0
@@ -36,6 +40,8 @@ def run_test(test_data, net, end_token, device="cuda"):
         # enc = net.encode(input_seq)
         context, enc = net.encode_context(input_seq)
         # Return logits (N*outputvocab), res_tokens (1*N)
+        # Always use the first token in input sequence, which is '#BEG' as the initial input of decoder.
+        # The maximum length of the output is defined in class libbots.data.
         _, tokens = net.decode_chain_argmax(enc, input_seq.data[0:1],
                                             seq_len=data.MAX_TOKENS,
                                             context = context[0],
@@ -49,7 +55,7 @@ if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
 
     # command line parameters
-    sys.argv = ['train_crossent_webqsp.py', '--cuda', '--n=crossent_webqsp', '--att=1', '--lstm=1']
+    sys.argv = ['train_crossent_webqsp.py', '--cuda', '--n=crossent_even_att=0_withINT', '--att=0', '--lstm=1', '--int', '-w2v=300']
 
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. "
@@ -64,7 +70,9 @@ if __name__ == "__main__":
     parser.add_argument("--lstm", type=lambda x: (str(x).lower() in ['true', '1', 'yes']),
                         help="Using LSTM mechanism in seq2seq")
     # If false, the embedding tensors in the model do not need to be trained.
-    parser.add_argument('--embed-grad', action='store_false', help='use the first-order approximation of MAML')
+    parser.add_argument('--embed-grad', action='store_false', help='the embeddings would not be optimized when training')
+    parser.add_argument('--int', action='store_true', help='training model with INT mask information')
+    parser.add_argument("-w2v", "--word_dimension", type=int, default=50, help="The dimension of the word embeddings")
     args = parser.parse_args()
     device = torch.device("cuda" if args.cuda else "cpu")
     log.info("Device info: %s", str(device))
@@ -72,9 +80,15 @@ if __name__ == "__main__":
     saves_path = os.path.join(SAVES_DIR, args.name)
     os.makedirs(saves_path, exist_ok=True)
 
-    # 得到配对的input-output pair和对应的词汇表（词汇表放在一起），这里可以换成自己的pair和词典！
-    # phrase_pairs, emb_dict = data.load_data(genre_filter=args.data)
-    phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH, TRAIN_ACTION_PATH, DIC_PATH, MAX_TOKENS)
+    # To get the input-output pairs and the relevant dictionary.
+    if not args.int:
+        log.info("Training model without INT mask information...")
+        phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH, TRAIN_ACTION_PATH, DIC_PATH, MAX_TOKENS)
+
+    if args.int:
+        log.info("Training model with INT mask information...")
+        phrase_pairs, emb_dict = data.load_data_from_existing_data(TRAIN_QUESTION_PATH_INT, TRAIN_ACTION_PATH_INT, DIC_PATH_INT, MAX_TOKENS_INT)
+
     # Index -> word.
     rev_emb_dict = {idx: word for word, idx in emb_dict.items()}
     log.info("Obtained %d phrase pairs with %d uniq words from %s and %s.",
@@ -88,15 +102,16 @@ if __name__ == "__main__":
     log.info("Training data converted, got %d samples", len(train_data))
     train_data, test_data = data.split_train_test(train_data)
     log.info("Train set has %d phrases, test %d", len(train_data), len(test_data))
-    if (args.att):
+    if args.att:
         log.info("Using attention mechanism to train the SEQ2SEQ model...")
     else:
         log.info("Train the SEQ2SEQ model without attention mechanism...")
-    if (args.lstm):
+    if args.lstm:
         log.info("Using LSTM mechanism to train the SEQ2SEQ model...")
     else:
         log.info("Using RNN mechanism to train the SEQ2SEQ model...")
-    net = model.PhraseModel(emb_size=model.EMBEDDING_DIM, dict_size=len(emb_dict),
+
+    net = model.PhraseModel(emb_size=args.word_dimension, dict_size=len(emb_dict),
                             hid_size=model.HIDDEN_STATE_SIZE, LSTM_FLAG=args.lstm, ATT_FLAG=args.att).to(device)
     # 转到cuda
     net.cuda()
@@ -197,7 +212,7 @@ if __name__ == "__main__":
         print ("------------------Epoch " + str(epoch) + ": training is over.------------------")
 
     time_end = time.time()
-    log.info("Training time is %.3fs." %(time_end-time_start))
-    print ("Training time is %.3fs." %(time_end - time_start))
+    log.info("Training time is %.3fs." % (time_end - time_start))
+    print("Training time is %.3fs." % (time_end - time_start))
 
     writer.close()

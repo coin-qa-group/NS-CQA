@@ -434,7 +434,7 @@ class Symbolics_WebQSP_novar():
     # A7 A8
     def order_value_limit(self, e, r, n, b_reverse):
         intermediate_result = {}
-        if r == "" or int(n) is None:
+        if r == "" or not n.isdigit():
             return {}
         elif not isinstance(self.answer, dict):
             return {}

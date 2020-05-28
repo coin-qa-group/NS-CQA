@@ -30,6 +30,11 @@ DIC_PATH_INT = '../data/auto_QA_data/share_INT.question'
 # DIC_PATH_INT = '../data/auto_QA_data/share_944K_INT.question'
 TRAIN_QUESTION_ANSWER_PATH = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new_2k.question'
 TRAIN_QUESTION_ANSWER_PATH_INT = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new_INT.question'
+
+DIC_PATH_WEBQSP = '../data/webqsp_data/share.webqsp.question'
+DIC_PATH_INT_WEBQSP = '../data/webqsp_data/share.webqsp.question'
+TRAIN_QUESTION_ANSWER_PATH_WEBQSP = '../data/webqsp_data/final_webqsp_train_RLold.json'
+TRAIN_QUESTION_ANSWER_PATH_INT_WEBQSP = '../data/webqsp_data/final_webqsp_train_RLold.json'
 log = logging.getLogger("train")
 
 
@@ -53,19 +58,37 @@ def run_test(test_data, net, rev_emb_dict, end_token, device="cuda"):
             if temp_idx in rev_emb_dict and rev_emb_dict.get(temp_idx) != '#END':
                 action_tokens.append(str(rev_emb_dict.get(temp_idx)).upper())
         # Using 0-1 reward to compute accuracy.
-        argmax_reward_sum += float(utils.calc_True_Reward(action_tokens, p2, False))
+        if args.dataset == "csqa":
+            argmax_reward_sum += float(utils.calc_True_Reward(action_tokens, p2, False))
+        else:
+            argmax_reward_sum += float(utils.calc_True_Reward_webqsp_novar(action_tokens, p2, False))
+
         argmax_reward_count += 1
-    return float(argmax_reward_sum) / float(argmax_reward_count)
+
+    if argmax_reward_count == 0:
+        return 0.0
+    else:
+        return float(argmax_reward_sum) / float(argmax_reward_count)
 
 if __name__ == "__main__":
     logging.basicConfig(format="%(asctime)-15s %(levelname)s %(message)s", level=logging.INFO)
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
-    sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%_att=0_withINT/pre_bleu_0.952_84.dat', '-n=rl_TR_1%_batch8_att=0_withINT', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=50']
-    # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
+    sys.argv = ['train_scst_true_reward.py',
+                '--cuda',
+                '-l=../data/saves/webqsp0517/crossent_even_1%_att=0_withINT/epoch_029_0.852_0.000old.dat',
+                '-d=csqa',
+                '-n=rl_TR_1%_batch8_att=0_withINT',
+                '-s=5',
+                '-a=0',
+                '--att=1',
+                '--lstm=1',
+                '--int',
+                '-w2v=50']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. Empty string to train on full processDataset")
     parser.add_argument("--cuda", action='store_true', default=False, help="Enable cuda")
+    parser.add_argument("-d", "--dataset", default="csqa", help="Name of the dataset")
     parser.add_argument("-n", "--name", required=True, help="Name of the run")
     parser.add_argument("-l", "--load", required=True, help="Load the pre-trained model whereby continue training the RL mode")
     # Number of decoding samples.
@@ -94,10 +117,16 @@ if __name__ == "__main__":
 
     # # List of (question, {question information and answer}) pairs, the training pairs are in format of 1:1.
     if args.int:
-        phrase_pairs, emb_dict = data.load_RL_data_TR_INT(TRAIN_QUESTION_ANSWER_PATH_INT, DIC_PATH_INT, MAX_TOKENS_INT)
+        if args.dataset == "csqa":
+            phrase_pairs, emb_dict = data.load_RL_data_TR_INT(TRAIN_QUESTION_ANSWER_PATH_INT, DIC_PATH_INT, MAX_TOKENS_INT)
+        else:
+            phrase_pairs, emb_dict = data.load_RL_data_TR_INT(TRAIN_QUESTION_ANSWER_PATH_INT_WEBQSP, DIC_PATH_INT_WEBQSP, MAX_TOKENS_INT)
         log.info("Obtained %d phrase pairs with %d uniq words from %s with INT mask information.", len(phrase_pairs), len(emb_dict), TRAIN_QUESTION_ANSWER_PATH_INT)
     else:
-        phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS)
+        if args.dataset == "csqa":
+            phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS)
+        else:
+            phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH_WEBQSP, DIC_PATH_WEBQSP, MAX_TOKENS)
         log.info("Obtained %d phrase pairs with %d uniq words from %s without INT mask information.", len(phrase_pairs), len(emb_dict), TRAIN_QUESTION_ANSWER_PATH)
 
     data.save_emb_dict(saves_path, emb_dict)
@@ -208,7 +237,11 @@ if __name__ == "__main__":
                     # Get the highest BLEU score as baseline used in self-critic.
                     # If the last parameter is false, it means that the 0-1 reward is used to calculate the accuracy.
                     # Otherwise the adaptive reward is used.
-                    argmax_reward = utils.calc_True_Reward(action_tokens, qa_info, args.adaptive)
+                    if args.dataset == "csqa":
+                        argmax_reward = utils.calc_True_Reward(action_tokens, qa_info, args.adaptive)
+                    else:
+                        argmax_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
+
                     true_reward_argmax.append(argmax_reward)
 
                     # # In this case, the BLEU score is so high that it is not needed to train such case with RL.
@@ -254,7 +287,10 @@ if __name__ == "__main__":
                                 action_tokens.append(str(rev_emb_dict.get(temp_idx)).upper())
                         # If the last parameter is false, it means that the 0-1 reward is used to calculate the accuracy.
                         # Otherwise the adaptive reward is used.
-                        sample_reward = utils.calc_True_Reward(action_tokens, qa_info, args.adaptive)
+                        if args.dataset == "csqa":
+                            sample_reward = utils.calc_True_Reward(action_tokens, qa_info, args.adaptive)
+                        else:
+                            sample_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
 
                         if not dial_shown:
                             log.info("Sample: %s, reward=%.4f", utils.untokenize(data.decode_words(actions, rev_emb_dict)),

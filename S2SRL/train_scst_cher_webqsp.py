@@ -17,14 +17,14 @@ import ptan
 import json
 import math
 
-SAVES_DIR = "../data/saves"
+SAVES_DIR = "../data/saves/webqso_cher2_chain_epoch_020_0.984_0.964_0506_100%"
 
-BATCH_SIZE = 8
+BATCH_SIZE = 64
 LEARNING_RATE = 1e-4
-MAX_EPOCHS = 30
+MAX_EPOCHS = 100
 MAX_TOKENS = 40
 MAX_TOKENS_INT = 43
-TRAIN_RATIO = 0.985
+TRAIN_RATIO = 1.0
 GAMMA = 0.05
 MAX_MEMORY_BUFFER_SIZE = 10
 # ALPHA is the bonus scalar.
@@ -33,17 +33,11 @@ ALPHA = 0.1
 ETA = 0.08
 LAMBDA_0 = 0.1
 
-DIC_PATH = '../data/auto_QA_data/share.question'
-DIC_PATH_INT = '../data/auto_QA_data/share_INT.question'
+DIC_PATH = '../data/webqsp_data/share.webqsp.question'
+DIC_PATH_INT = '../data/webqsp_data/share.webqsp.question'
 # DIC_PATH_INT = '../data/auto_QA_data/share_944K_INT.question'
-TRAIN_QUESTION_ANSWER_PATH = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new.question'
-TRAIN_QUESTION_ANSWER_PATH_INT = '../data/auto_QA_data/mask_even_1.0%/RL_train_TR_new_INT.question'
-
-DIC_PATH_WEBQSP = '../data/webqsp_data/share.webqsp.question'
-DIC_PATH_INT_WEBQSP = '../data/webqsp_data/share.webqsp.question'
-TRAIN_QUESTION_ANSWER_PATH_WEBQSP = '../data/webqsp_data/final_webqsp_train_RLold.json'
-TRAIN_QUESTION_ANSWER_PATH_INT_WEBQSP = '../data/webqsp_data/final_webqsp_train_RLold.json'
-
+TRAIN_QUESTION_ANSWER_PATH = '../data/webqsp_data/final_webqsp_train_RL.json'
+TRAIN_QUESTION_ANSWER_PATH_INT = '../data/webqsp_data/final_webqsp_train_RL.json'
 log = logging.getLogger("train")
 
 
@@ -68,18 +62,14 @@ def run_test(test_data, net, rev_emb_dict, end_token, device="cuda"):
             if temp_idx in rev_emb_dict and rev_emb_dict.get(temp_idx) != '#END':
                 action_tokens.append(str(rev_emb_dict.get(temp_idx)).upper())
         # Using 0-1 reward to compute accuracy.
-        if args.dataset == "csqa":
-            reward = utils.calc_True_Reward(action_tokens, p2, False)
-        else:
-            reward = utils.calc_True_Reward_webqsp_novar(action_tokens, p2, False)
+        reward = utils.calc_True_Reward_webqsp_novar(action_tokens, p2, False)
         # reward = random.random()
         argmax_reward_sum += float(reward)
         argmax_reward_count += 1
-
-    if argmax_reward_count == 0:
-        return 0.0
-    else:
+    if argmax_reward_count > 0:
         return float(argmax_reward_sum) / float(argmax_reward_count)
+    else:
+        return 0.0
 
 
 if __name__ == "__main__":
@@ -87,14 +77,13 @@ if __name__ == "__main__":
     # # command line parameters
     # # -a=True means using adaptive reward to train the model. -a=False is using 0-1 reward.
     sys.argv = ['train_scst_cher.py', '--cuda',
-                '-l=../data/saves/crossent_1%_att=0_withINT_w2v=300/pre_bleu_0.956_43.dat',
-                '-d=csqa',
-                '-n=rl_TR_1%_batch8_att=0_withINT_CHER', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int', '-w2v=300', '--beam_width=10', '--CHER', '--MonteCarlo', '--BeamSearch']
+                '-l=../data/saves/webqsp/crossent_even_att=0_withINT/epoch_020_0.984_0.964.dat',
+                '-n=rl_TR_1%_batch8_att=0_withINT_CHER_test', '-s=5', '-a=0', '--att=0', '--lstm=1', '--int',
+                '-w2v=300', '--beam_width=10', '--CHER', '--MonteCarlo']
     # sys.argv = ['train_scst_true_reward.py', '--cuda', '-l=../data/saves/crossent_even_1%/pre_bleu_0.946_55.dat', '-n=rl_even_true_1%', '-s=5']
     parser = argparse.ArgumentParser()
     # parser.add_argument("--data", required=True, help="Category to use for training. Empty string to train on full processDataset")
     parser.add_argument("--cuda", action='store_true', default=False, help="Enable cuda")
-    parser.add_argument("-d", "--dataset", default="csqa", help="Name of the dataset")
     parser.add_argument("-n", "--name", required=True, help="Name of the run")
     parser.add_argument("-l", "--load", required=True,
                         help="Load the pre-trained model whereby continue training the RL mode")
@@ -135,20 +124,11 @@ if __name__ == "__main__":
 
     # # List of (question, {question information and answer}) pairs, the training pairs are in format of 1:1.
     if args.int:
-        if args.dataset == "csqa":
-            phrase_pairs, emb_dict = data.load_RL_data_TR_INT(TRAIN_QUESTION_ANSWER_PATH_INT, DIC_PATH_INT,
-                                                              MAX_TOKENS_INT)
-        else:
-            phrase_pairs, emb_dict = data.load_RL_data_TR_INT(TRAIN_QUESTION_ANSWER_PATH_INT_WEBQSP,
-                                                              DIC_PATH_INT_WEBQSP, MAX_TOKENS_INT)
+        phrase_pairs, emb_dict = data.load_RL_data_TR_INT(TRAIN_QUESTION_ANSWER_PATH_INT, DIC_PATH_INT, MAX_TOKENS_INT)
         log.info("Obtained %d phrase pairs with %d uniq words from %s with INT mask information.", len(phrase_pairs),
                  len(emb_dict), TRAIN_QUESTION_ANSWER_PATH_INT)
     else:
-        if args.dataset == "csqa":
-            phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS)
-        else:
-            phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH_WEBQSP, DIC_PATH_WEBQSP,
-                                                          MAX_TOKENS)
+        phrase_pairs, emb_dict = data.load_RL_data_TR(TRAIN_QUESTION_ANSWER_PATH, DIC_PATH, MAX_TOKENS)
         log.info("Obtained %d phrase pairs with %d uniq words from %s without INT mask information.", len(phrase_pairs),
                  len(emb_dict), TRAIN_QUESTION_ANSWER_PATH)
 
@@ -286,10 +266,7 @@ if __name__ == "__main__":
                     # Get the highest BLEU score as baseline used in self-critic.
                     # If the last parameter is false, it means that the 0-1 reward is used to calculate the accuracy.
                     # Otherwise the adaptive reward is used.
-                    if args.dataset == "csqa":
-                        argmax_reward = utils.calc_True_Reward(action_tokens, qa_info, args.adaptive)
-                    else:
-                        argmax_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
+                    argmax_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
                     # argmax_reward = random.random()
                     true_reward_argmax.append(argmax_reward)
 
@@ -349,10 +326,7 @@ if __name__ == "__main__":
                                 action_tokens.append(str(rev_emb_dict.get(temp_idx)).upper())
                         # If the last parameter is false, it means that the 0-1 reward is used to calculate the accuracy.
                         # Otherwise the adaptive reward is used.
-                        if args.dataset == "csqa":
-                            sample_reward = utils.calc_True_Reward(action_tokens, qa_info, args.adaptive)
-                        else:
-                            sample_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
+                        sample_reward = utils.calc_True_Reward_webqsp_novar(action_tokens, qa_info, args.adaptive)
                         # sample_reward = random.random()
 
                         if args.CHER:

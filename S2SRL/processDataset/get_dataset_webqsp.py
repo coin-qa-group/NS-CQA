@@ -39,7 +39,7 @@ class Qapair(object):
         }
 
 class WebQSP(object):
-    def __init__(self, id, question, action_sequence_list, entity, relation, type, entity_mask, relation_mask, type_mask, mask_action_sequence_list, answerlist, input_str, response_entities, orig_response_str):
+    def __init__(self, id, question, action_sequence_list, entity, relation, type, entity_mask, relation_mask, type_mask, mask_action_sequence_list, answerlist, input_str, response_entities, orig_response_str, action_string, int_mask):
         self.id = id
         self.question = question
         self.action_sequence_list = action_sequence_list
@@ -54,6 +54,8 @@ class WebQSP(object):
         self.input_str = input_str
         self.response_entities = response_entities
         self.orig_response_str = orig_response_str
+        self.action_string = action_string
+        self.int_mask = int_mask
 
     def obj_2_rljson(obj):
         return {
@@ -69,8 +71,10 @@ class WebQSP(object):
                 "answers": obj.answerlist,
                 "input": obj.input_str,
                 "response_entities": obj.response_entities,
-                "response_bools":[],
-                "orig_response": obj.orig_response_str
+                "response_bools": [],
+                "orig_response": obj.orig_response_str,
+                "pseudo_gold_program": obj.action_string,
+                "int_mask": obj.int_mask
             }
         }
 
@@ -89,7 +93,9 @@ class WebQSP(object):
                 "answers": obj.answerlist,
                 "input": obj.input_str,
                 "response_entities": obj.response_entities,
-                "orig_response_str": obj.orig_response_str
+                "orig_response_str": obj.orig_response_str,
+                "pseudo_gold_program": obj.action_string,
+                "int_mask": obj.int_mask
             }
         }
 
@@ -481,8 +487,8 @@ def process_webqsp_RL():
         to_handle_list = json.load(to_handle_file)
     with open("to_test_by_hand.json", "r", encoding='UTF-8') as to_test_by_hand_file:
         to_test_by_hand_list = json.load(to_test_by_hand_file)
-    with open("errorlist.json", "r", encoding='UTF-8') as errors_file:
-        errorlist_file_list = json.load(errors_file)
+    # with open("errorlist.json", "r", encoding='UTF-8') as errors_file:
+    #     errorlist_file_list = json.load(errors_file)
 
     train_questions = load_dictTrain["Questions"]
     test_questions = load_dictTest["Questions"]
@@ -570,7 +576,8 @@ def process_webqsp_RL():
                 sparql_str_type = ""
                 # if id not in errorlist_file_list:
                 #     continue
-                if id in to_handle_list:
+                if False:
+                # if id in to_handle_list:
                     seq = to_handle_list[id]["action_sequence_list"]
                 else:
                     seq, sparql_str_type = processSparql(test_sparql, id, constraint_list)
@@ -740,12 +747,37 @@ def process_webqsp_RL():
                                 question_token = question_token.strip()
                                 question_string += question_token
                                 question_string = question_string.strip()
-                                # question_tokens = question_string.strip().split(' ')
-                                # question_tokens_set = set(question_tokens)
-                                # questionSet = questionSet.union(question_tokens_set)
+
+                                action_string = ''
+                                try:
+                                    actions = eval(str(seq))
+                                except SyntaxError:
+                                    pass
+                                if len(actions) > 0:
+                                    action_list = actions
+                                    action = eval(str(action_list))
+                                    for action_dict in action_list:
+                                        for temp_key, temp_value in action_dict.items():
+                                            action_string += temp_key + ' ( '
+                                            for token in temp_value:
+                                                # if '-' in token:
+                                                #     token = '- ' + token.replace('-','')
+                                                if "?" not in token:
+                                                    mask_token = ''
+                                                    if token in entity_mask:
+                                                        mask_token = entity_mask[token]
+                                                    elif token in relation_mask:
+                                                        mask_token = relation_mask[token]
+                                                    elif token in type_mask:
+                                                        mask_token = type_mask[token]
+                                                    action_string += str(mask_token) + ' '
+                                            action_string += ') '
+
+                                int_mask = {}
+
                                 correct_item = WebQSP(id, question, seq, entity, relation, types, entity_mask,
                                                       relation_mask, type_mask, mask_action_sequence_list,
-                                                      answerList, question_string, response_entities, orig_response_str)
+                                                      answerList, question_string, response_entities, orig_response_str, action_string, int_mask)
                             # print(question)
                             # print(answer)
                             WebQSPList_Correct.append(id)
@@ -1346,10 +1378,10 @@ if __name__ == "__main__":
     process_webqsp_RL()   # dataset to mask
 
 
-    getTrainingDatasetForPytorch_seq2seq_webqsp_novar() # PT.train
-
-    getTrainingDatasetForRlWebQSP()
-    getShareVocabularyForWebQSP() # share.question
+    # getTrainingDatasetForPytorch_seq2seq_webqsp_novar() # PT.train
+    #
+    # getTrainingDatasetForRlWebQSP()
+    # getShareVocabularyForWebQSP() # share.question
     # testInputData()
 
     # getTrainingDatasetForPytorch_seq2seq_webqsp() # PT.train
